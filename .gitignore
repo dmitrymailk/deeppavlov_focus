@@ -161,4 +161,4 @@ cython_debug/
 datasets
 temp
 a.sh
-
+lightning_logs

@@ -164,3 +164,4 @@ a.sh
 lightning_logs
 wandb
 Test
+training_logs

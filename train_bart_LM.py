@@ -286,21 +286,29 @@ class BartFoCusDatasetSampleV1:
 		knowledge = self.focus_dataset_sample["knowledge"]
 
 		encoded_persona = self.tokenizer.batch_encode_plus(
-			persona, add_special_tokens=False
+			persona, 
+			add_special_tokens=False,
+			truncation=True,
 		)
 
 		dialog_history = dialog[-2 * dialog_history_length :]
 		dialog_history_feature = self.tokenizer.batch_encode_plus(
-			dialog_history[:-1], add_special_tokens=False
+			dialog_history[:-1], 
+			add_special_tokens=False,
+			truncation=True,
 		)
 		dialog_history_target = self.tokenizer.batch_encode_plus(
-			dialog_history[-1:], add_special_tokens=False
+			dialog_history[-1:], 
+			add_special_tokens=False,
+			truncation=True,
 		)
 
 		# контекст на основе которого подбирается knowledge
 		query_context = dialog_history_feature["input_ids"][-context_length:]
 		encoded_knowledge = self.tokenizer.batch_encode_plus(
-			knowledge, add_special_tokens=False
+			knowledge, 
+			add_special_tokens=False,
+			truncation=True,
 		)
 
 		tf_idf = FoCusTF_IDF(corpus=encoded_knowledge["input_ids"])
@@ -487,7 +495,7 @@ class FoCusDataModuleV1(LightningDataModule):
 
 		pad_input_ids = []
 		pad_attention_mask = []
-
+		
 		for item in batch:
 			input_ids: List = item["input_ids"]
 			attention_mask: List = item["attention_mask"]

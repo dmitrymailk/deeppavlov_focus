@@ -1,1 +1,1 @@
-python ./train-bart-LM.py
+python ./train_bart_LM.py

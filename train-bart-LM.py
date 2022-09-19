@@ -1,3 +1,4 @@
+from xml.etree.ElementPath import ops
 from torch.utils.data import Dataset
 from typing import List, Dict, TypedDict
 import json
@@ -201,6 +202,7 @@ class BartFoCusDatasetSampleHyperparametersV1:
 		self.warmup_steps = 10
 		self.learning_rate = 6.25e-5
 		self.adam_epsilon = 1e-8
+		self.weight_decay = 0.01
 
 		self.gradient_accumulation_steps = 1
 		self.train_epochs = 1
@@ -594,7 +596,6 @@ class BARTModelV1(LightningModule):
 		if is_training:
 			self.model.resize_token_embeddings(len(tokenizer))
 
-		# self.automatic_optimization = False
 
 	def forward(
 		self,
@@ -608,21 +609,8 @@ class BARTModelV1(LightningModule):
 			labels=labels,
 		)
 
-	def configure_optimizers(self) -> torch.optim.Optimizer:
-		optimizer = torch.optim.AdamW(
-			params=self.model.parameters(),
-			lr=self.hyperparameters.learning_rate,
-			eps=self.hyperparameters.adam_epsilon,
-		)
 
-		scheduler = get_linear_schedule_with_warmup(
-			optimizer,
-			num_warmup_steps=self.hyperparameters.warmup_steps,
-			num_training_steps=self.trainer.estimated_stepping_batches,
-		)
-		return [optimizer], [scheduler]
-
-	def training_step(self, batch: List, batch_idx: int) -> Dict:
+	def training_step(self, batch: List, batch_idx: int):
 		input_ids = batch["input_ids"]
 		attention_mask = batch["attention_mask"]
 		labels = input_ids.clone()
@@ -649,7 +637,7 @@ class BARTModelV1(LightningModule):
 		# return {"loss": loss}
 		return loss
 
-	def validation_step(self, batch: List, batch_idx: int) -> Dict:
+	def validation_step(self, batch: List, batch_idx: int):
 		input_ids = batch["input_ids"]
 		attention_mask = batch["attention_mask"]
 		labels = input_ids.clone()
@@ -663,6 +651,41 @@ class BARTModelV1(LightningModule):
 		self.log(
 			"valid_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
 		)
+	
+	def configure_optimizers(self):
+		model = self.model
+		no_decay = ["bias", "LayerNorm.weight"]
+		optimizer_grouped_parameters = [
+			{
+				"params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+				"weight_decay": self.hyperparameters.weight_decay,
+			},
+			{
+				"params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
+				"weight_decay": self.hyperparameters.weight_decay,
+			},
+		]
+
+		optimizer = torch.optim.AdamW(
+			optimizer_grouped_parameters, 
+			lr=self.hyperparameters.learning_rate,
+			eps=self.hyperparameters.adam_epsilon,
+		)
+
+		# optimizer = torch.optim.AdamW(
+		# 	params=self.model.parameters(),
+		# 	lr=self.hyperparameters.learning_rate,
+		# 	eps=self.hyperparameters.adam_epsilon,
+		# )
+
+		scheduler = get_linear_schedule_with_warmup(
+			optimizer,
+			num_warmup_steps=self.hyperparameters.warmup_steps,
+			num_training_steps=self.trainer.estimated_stepping_batches,
+		)
+		scheduler = {"scheduler": scheduler, "interval": "step", "frequency": 1}
+
+		return [optimizer], [scheduler]
 
 
 if __name__ == "__main__":
@@ -686,12 +709,12 @@ if __name__ == "__main__":
 		is_training=True,
 	)
 
-	wandb_logger = WandbLogger(project="Test", name=hyperparameters.bart_model_name)
+	# wandb_logger = WandbLogger(project="Test", name=hyperparameters.bart_model_name)
 
 	trainer = Trainer(
 		max_epochs=hyperparameters.train_epochs,
 		accelerator="gpu",
-		logger=wandb_logger,
+		# logger=wandb_logger,
 	)
 
 	trainer.fit(model, datamodule=data_module)

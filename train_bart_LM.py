@@ -728,7 +728,10 @@ class ExperimentArgumentParserV1:
         params = [
             (
                 "--is_debug",
-                {"dest": "is_debug", "type": bool, "default": False},
+                {
+                    "dest": "is_debug",
+                    "action": "store_true",
+                },
             ),
         ]
 

@@ -1,10 +1,10 @@
 import torch
 
 from train_bart_LM import (
-    BartFoCusDatasetSampleHyperparametersV1,
+    HyperparametersV1,
     BartFoCusTokenizerV1,
     BartLMV1,
-    FoCusDataModuleV1,
+    FoCusLightningDataModuleV1,
 )
 
 from transformers import BartConfig
@@ -80,20 +80,20 @@ class Experiment:
 
 if __name__ == "__main__":
 
-    hyperparameters = BartFoCusDatasetSampleHyperparametersV1()
+    hyperparameters = HyperparametersV1()
     tokenizer = BartFoCusTokenizerV1.from_pretrained(
-        hyperparameters.bart_model_name, hyperparameters=hyperparameters
+        hyperparameters.model_name, hyperparameters=hyperparameters
     )
 
     model = BartLMV1(
-        config=BartConfig.from_pretrained(hyperparameters.bart_model_name),
+        config=BartConfig.from_pretrained(hyperparameters.model_name),
         hyperparameters=hyperparameters,
         tokenizer=tokenizer,
     )
 
     model.resize_token_embeddings(len(tokenizer))
 
-    data_module = FoCusDataModuleV1(
+    data_module = FoCusLightningDataModuleV1(
         train_path_dataset="./datasets/FoCus/train_focus.json",
         valid_path_dataset="./datasets/FoCus/valid_focus.json",
         hyperparameters=hyperparameters,

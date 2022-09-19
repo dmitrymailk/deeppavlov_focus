@@ -158,12 +158,28 @@ class FoCusDatasetSampleV1:
         }
 
 
-class BartFoCusDatasetSampleHyperparametersV1:
+class HyperparametersV1:
     def __init__(
         self,
         dialog_history_length: int = 1,
         context_length: int = 1,
         knowledge_length: int = 1,
+        max_persona_tokens: int = 200,
+        max_dialog_history_tokens: int = 200,
+        max_knowledge_tokens: int = 200,
+        max_bot_response_tokens: int = 150,
+        dialog_bos_token: str = "<dialog>",
+        dialog_eos_token: str = "</dialog>",
+        seed: int = 2022,
+        train_batch_size: int = 4,
+        valid_batch_size: int = 4,
+        warmup_steps: int = 100,
+        learning_rate: float = 6.25e-5,
+        adam_epsilon: float = 1e-8,
+        weight_decay: float = 0.01,
+        gradient_accumulation_steps: int = 1,
+        train_epochs: int = 1,
+        model_name: str = "facebook/bart-base",
     ) -> None:
 
         r"""
@@ -180,27 +196,27 @@ class BartFoCusDatasetSampleHyperparametersV1:
         self.context_length = context_length
         self.knowledge_length = knowledge_length
 
-        self.max_persona_tokens = 200
-        self.max_dialog_history_tokens = 200
-        self.max_knowledge_tokens = 200
-        self.max_bot_response_tokens = 150
+        self.max_persona_tokens = max_persona_tokens
+        self.max_dialog_history_tokens = max_dialog_history_tokens
+        self.max_knowledge_tokens = max_knowledge_tokens
+        self.max_bot_response_tokens = max_bot_response_tokens
 
-        self.dialog_bos_token = "<dialog>"
-        self.dialog_eos_token = "</dialog>"
+        self.dialog_bos_token = dialog_bos_token
+        self.dialog_eos_token = dialog_eos_token
 
-        self.seed = 2022
-        self.train_batch_size = 4
-        self.valid_batch_size = 8
+        self.seed = seed
+        self.train_batch_size = train_batch_size
+        self.valid_batch_size = valid_batch_size
 
-        self.warmup_steps = 10
-        self.learning_rate = 6.25e-5
-        self.adam_epsilon = 1e-8
-        self.weight_decay = 0.01
+        self.warmup_steps = warmup_steps
+        self.learning_rate = learning_rate
+        self.adam_epsilon = adam_epsilon
+        self.weight_decay = weight_decay
 
-        self.gradient_accumulation_steps = 1
-        self.train_epochs = 1
+        self.gradient_accumulation_steps = gradient_accumulation_steps
+        self.train_epochs = train_epochs
 
-        self.bart_model_name = "facebook/bart-base"
+        self.model_name = model_name
 
 
 class BartFoCusTokenizerV1(BartTokenizer):
@@ -211,7 +227,7 @@ class BartFoCusTokenizerV1(BartTokenizer):
     def from_pretrained(
         cls,
         *args,
-        hyperparameters: BartFoCusDatasetSampleHyperparametersV1 = None,
+        hyperparameters: HyperparametersV1 = None,
         **kwargs,
     ):
 
@@ -249,7 +265,7 @@ class BartFoCusDatasetSampleV1:
         self,
         focus_dataset_sample: FoCusDatasetSampleDictV1 = None,
         tokenizer: BartFoCusTokenizerV1 = None,
-        h_params: BartFoCusDatasetSampleHyperparametersV1 = None,
+        h_params: HyperparametersV1 = None,
     ) -> None:
         self.focus_dataset_sample = focus_dataset_sample
         self.tokenizer = tokenizer
@@ -410,7 +426,7 @@ class PytorchFoCusDatasetV1(Dataset):
         self,
         dataset: FoCusDatasetV1,
         tokenizer: BartFoCusTokenizerV1 = None,
-        hyperparameters: BartFoCusDatasetSampleHyperparametersV1 = None,
+        hyperparameters: HyperparametersV1 = None,
     ) -> None:
         self.dataset = dataset
         self.hyperparameters = hyperparameters
@@ -430,12 +446,12 @@ class PytorchFoCusDatasetV1(Dataset):
         return train_sample
 
 
-class FoCusDataModuleV1(LightningDataModule):
+class FoCusLightningDataModuleV1(LightningDataModule):
     def __init__(
         self,
         train_path_dataset: str = None,
         valid_path_dataset: str = None,
-        hyperparameters: BartFoCusDatasetSampleHyperparametersV1 = None,
+        hyperparameters: HyperparametersV1 = None,
         tokenizer: BartFoCusTokenizerV1 = None,
         is_debug: bool = False,
     ) -> None:
@@ -541,7 +557,7 @@ class BartLMV1(BartPretrainedModel):
     def __init__(
         self,
         config: BartConfig = None,
-        hyperparameters: BartFoCusDatasetSampleHyperparametersV1 = None,
+        hyperparameters: HyperparametersV1 = None,
         tokenizer: BartFoCusTokenizerV1 = None,
     ) -> None:
         super().__init__(config=config)
@@ -586,7 +602,7 @@ class BartLMV1(BartPretrainedModel):
 class BARTLightningModelV1(LightningModule):
     def __init__(
         self,
-        hyperparameters: BartFoCusDatasetSampleHyperparametersV1 = None,
+        hyperparameters: HyperparametersV1 = None,
         tokenizer: BartFoCusTokenizerV1 = None,
         is_training: bool = False,
     ) -> None:
@@ -598,7 +614,7 @@ class BARTLightningModelV1(LightningModule):
         self.tokenizer = tokenizer
 
         self.model = BartLMV1(
-            config=BartConfig.from_pretrained(hyperparameters.bart_model_name),
+            config=BartConfig.from_pretrained(hyperparameters.model_name),
             hyperparameters=hyperparameters,
             tokenizer=tokenizer,
         )
@@ -699,12 +715,12 @@ class BARTLightningModelV1(LightningModule):
         return [optimizer], [scheduler]
 
 
-class TrainArguments:
+class TrainArgumentsV1:
     def __init__(self, is_debug: bool) -> None:
         self.is_debug = is_debug
 
 
-class ExperimentArgumentParser:
+class ExperimentArgumentParserV1:
     """Todo: сделать типизацию через наследование от Namespace"""
 
     def __init__(self) -> None:
@@ -723,25 +739,27 @@ class ExperimentArgumentParser:
         args = args._get_kwargs()
         args = {arg[0]: arg[1] for arg in args}
 
-        args = TrainArguments(**args)
+        args = TrainArgumentsV1(**args)
 
         self.args = args
 
 
-if __name__ == "__main__":
-    parser = ExperimentArgumentParser()
-    args: TrainArguments = parser.args
+def experiment_v1() -> None:
+    parser = ExperimentArgumentParserV1()
+    args: TrainArgumentsV1 = parser.args
 
-    hyperparameters = BartFoCusDatasetSampleHyperparametersV1()
+    hyperparameters = HyperparametersV1(
+        gradient_accumulation_steps=3,
+    )
     seed_everything(hyperparameters.seed)
 
     tokenizer = BartFoCusTokenizerV1.from_pretrained(
-        hyperparameters.bart_model_name,
+        hyperparameters.model_name,
         hyperparameters=hyperparameters,
     )
     is_debug = args.is_debug
 
-    data_module = FoCusDataModuleV1(
+    data_module = FoCusLightningDataModuleV1(
         train_path_dataset="./datasets/FoCus/train_focus.json",
         valid_path_dataset="./datasets/FoCus/valid_focus.json",
         hyperparameters=hyperparameters,
@@ -754,13 +772,13 @@ if __name__ == "__main__":
         is_training=True,
     )
 
-    wandb_logger = WandbLogger(project="Test", name=hyperparameters.bart_model_name)
+    wandb_logger = WandbLogger(project="Test", name=hyperparameters.model_name)
 
     checkpoint_callback = ModelCheckpoint(
         save_top_k=1,
         monitor="valid_loss",
         mode="min",
-        filename=f"{hyperparameters.bart_model_name}" + "-{epoch:02d}-{val_loss:.2f}",
+        filename=f"{hyperparameters.model_name}" + "-{epoch:02d}-{val_loss:.2f}",
     )
 
     trainer = Trainer(
@@ -771,3 +789,7 @@ if __name__ == "__main__":
     )
 
     trainer.fit(model, datamodule=data_module)
+
+
+if __name__ == "__main__":
+    experiment_v1()

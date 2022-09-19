@@ -591,12 +591,11 @@ class BARTLightningModelV1(LightningModule):
         is_training: bool = False,
     ) -> None:
         super().__init__()
+        self.hparams.update(hyperparameters.__dict__)
         self.save_hyperparameters()
 
         self.hyperparameters = hyperparameters
         self.tokenizer = tokenizer
-
-        self.hparams.update(self.hyperparameters.__dict__)
 
         self.model = BartLMV1(
             config=BartConfig.from_pretrained(hyperparameters.bart_model_name),

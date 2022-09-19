@@ -632,8 +632,8 @@ class BARTModelV1(LightningModule):
         input_ids = batch["input_ids"]
         attention_mask = batch["attention_mask"]
         labels = input_ids.clone()
-        self.model.train()
-        outputs = self.model(
+
+        outputs = self.model.forward(
             input_ids=input_ids,
             attention_mask=attention_mask,
             labels=labels,
@@ -652,15 +652,15 @@ class BARTModelV1(LightningModule):
         self.log(
             "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
         )
-        # return {'loss': loss }
+        # return {"loss": loss}
         return loss
 
     def validation_step(self, batch: List, batch_idx: int) -> Dict:
         input_ids = batch["input_ids"]
         attention_mask = batch["attention_mask"]
         labels = input_ids.clone()
-        self.model.eval()
-        outputs = self.model(
+
+        outputs = self.model.forward(
             input_ids=input_ids,
             attention_mask=attention_mask,
             labels=labels,

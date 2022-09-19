@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 from itertools import chain
@@ -7,6 +8,8 @@ import numpy as np
 
 from pytorch_lightning import LightningDataModule, LightningModule, Trainer
 from pytorch_lightning import seed_everything
+from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.loggers import WandbLogger
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -19,9 +22,6 @@ from transformers import BartConfig, BartModel, BartPretrainedModel
 from transformers import BartTokenizer
 from transformers import get_linear_schedule_with_warmup
 from transformers.modeling_outputs import Seq2SeqLMOutput
-
-
-# from pytorch_lightning.loggers import WandbLogger
 
 
 class TfIdf:
@@ -583,7 +583,7 @@ class BartLMV1(BartPretrainedModel):
         )
 
 
-class BARTModelV1(LightningModule):
+class BARTLightningModelV1(LightningModule):
     def __init__(
         self,
         hyperparameters: BartFoCusDatasetSampleHyperparametersV1 = None,
@@ -656,7 +656,7 @@ class BARTModelV1(LightningModule):
         self.log(
             "valid_loss",
             loss,
-            on_step=True,
+            on_step=False,
             on_epoch=True,
             prog_bar=True,
             logger=True,
@@ -700,7 +700,38 @@ class BARTModelV1(LightningModule):
         return [optimizer], [scheduler]
 
 
+class TrainArguments:
+    def __init__(self, is_debug: bool) -> None:
+        self.is_debug = is_debug
+
+
+class ExperimentArgumentParser:
+    """Todo: сделать типизацию через наследование от Namespace"""
+
+    def __init__(self) -> None:
+        parser = argparse.ArgumentParser(description="training arguments")
+        params = [
+            (
+                "--is_debug",
+                {"dest": "is_debug", "type": bool, "default": False},
+            ),
+        ]
+
+        for name, param in params:
+            parser.add_argument(name, **param)
+
+        args = parser.parse_args()
+        args = args._get_kwargs()
+        args = {arg[0]: arg[1] for arg in args}
+
+        args = TrainArguments(**args)
+
+        self.args = args
+
+
 if __name__ == "__main__":
+    parser = ExperimentArgumentParser()
+    args: TrainArguments = parser.args
 
     hyperparameters = BartFoCusDatasetSampleHyperparametersV1()
     seed_everything(hyperparameters.seed)
@@ -709,7 +740,8 @@ if __name__ == "__main__":
         hyperparameters.bart_model_name,
         hyperparameters=hyperparameters,
     )
-    is_debug = False
+    is_debug = args.is_debug
+
     data_module = FoCusDataModuleV1(
         train_path_dataset="./datasets/FoCus/train_focus.json",
         valid_path_dataset="./datasets/FoCus/valid_focus.json",
@@ -717,18 +749,26 @@ if __name__ == "__main__":
         tokenizer=tokenizer,
         is_debug=is_debug,
     )
-    model = BARTModelV1(
+    model = BARTLightningModelV1(
         hyperparameters=hyperparameters,
         tokenizer=tokenizer,
         is_training=True,
     )
 
-    # wandb_logger = WandbLogger(project="Test", name=hyperparameters.bart_model_name)
+    wandb_logger = WandbLogger(project="Test", name=hyperparameters.bart_model_name)
+
+    checkpoint_callback = ModelCheckpoint(
+        save_top_k=1,
+        monitor="valid_loss",
+        mode="min",
+        filename=f"{hyperparameters.bart_model_name}" + "-{epoch:02d}-{val_loss:.2f}",
+    )
 
     trainer = Trainer(
         max_epochs=hyperparameters.train_epochs,
         accelerator="gpu",
-        # logger=wandb_logger,
+        logger=wandb_logger,
+        callbacks=[checkpoint_callback],
     )
 
     trainer.fit(model, datamodule=data_module)

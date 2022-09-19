@@ -6,4 +6,4 @@ if [ -n "$git_status" ]; then
 fi
 
 train_log_path=bart_base_$(date +"%d.%m.%Y_%H:%M:%S").log
-nohup python train_bart_LM.py --is_debug > ./training_logs/$train_log_path &
+nohup python train_bart_LM.py > ./training_logs/$train_log_path &

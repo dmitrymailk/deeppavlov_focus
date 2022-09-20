@@ -393,6 +393,7 @@ class BartFoCusDatasetSampleV2:
         self.unk_token_id = self.tokenizer.unk_token_id
         self.sep_token_id = self.tokenizer.sep_token_id
         self.cls_token_id = self.tokenizer.cls_token_id
+        self.eos_token_id = self.tokenizer.eos_token_id
 
         self.dialog_bos = self.__get_token_id(h_params.dialog_bos_token)
         self.dialog_eos = self.__get_token_id(h_params.dialog_eos_token)
@@ -422,6 +423,8 @@ class BartFoCusDatasetSampleV2:
             knowledge_sep_index (int): индекс токена SEP между knowledge и dialog
             dialog_bos_index (int): индекс токена <dialog>
             dialog_eos_index (int): индекс токена </dialog>
+        я возвращаю индексы токенов разделителей, чтобы потом на
+        основе них сделать классификаторы
         """
 
         dialog_history_length = self.h_params.dialog_history_length
@@ -494,12 +497,13 @@ class BartFoCusDatasetSampleV2:
             self.dialog_bos,
             *flat_bot_response,
             self.dialog_eos,
+            self.eos_token_id,
         ]
 
         attention_mask = [1] * len(input_sequence)
         knowledge_sep_index = 1 + len(flat_persona) + 1 + len(flat_knowledge)
-        dialog_bos_index = knowledge_sep_index + 1 + len(flat_dialog_history)
-        dialog_eos_index = dialog_bos_index + len(flat_bot_response)
+        dialog_bos_index = knowledge_sep_index + 1 + len(flat_dialog_history) + 1
+        dialog_eos_index = dialog_bos_index + len(flat_bot_response) + 1
 
         return {
             "input_ids": input_sequence,
@@ -512,12 +516,16 @@ class BartFoCusDatasetSampleV2:
         }
 
 
-class PytorchFoCusDatasetV2(PytorchFoCusDatasetV1):
+class PytorchFoCusDatasetV2:
     def __init__(
         self,
-        **kwargs,
+        dataset: FoCusDatasetV1,
+        tokenizer: BartFoCusTokenizerV1,
+        hyperparameters: BartHyperparametersV1,
     ) -> None:
-        super().__init__(**kwargs)
+        self.dataset = dataset
+        self.hyperparameters = hyperparameters
+        self.tokenizer = tokenizer
 
     def __len__(self) -> int:
         return len(self.dataset)

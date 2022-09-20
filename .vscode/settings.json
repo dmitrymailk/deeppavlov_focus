@@ -10,4 +10,8 @@
 		"--ignore=E203",
 		"--max-complexity=5"
 	],
+	"python.analysis.typeCheckingMode": "basic",
+	"python.analysis.ignore": [
+		"**/*.ipynb",
+	]
 }

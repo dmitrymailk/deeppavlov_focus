@@ -4,7 +4,7 @@ from core.tokenizers.bart_tokenizers import BartFoCusTokenizerV1
 import torch
 from torch import nn
 
-from transformers import BartConfig, BartModel, BartPretrainedModel
+from transformers import BartConfig, BartModel, BartPretrainedModel  # type: ignore
 from transformers.modeling_outputs import Seq2SeqLMOutput
 
 
@@ -32,9 +32,9 @@ class BartLMV1(BartPretrainedModel):
 
     def __init__(
         self,
-        config: BartConfig = None,
-        hyperparameters: BartHyperparametersV1 = None,
-        tokenizer: BartFoCusTokenizerV1 = None,
+        config: BartConfig,
+        hyperparameters: BartHyperparametersV1,
+        tokenizer: BartFoCusTokenizerV1,
     ) -> None:
         super().__init__(config=config)
         self.tokenizer = tokenizer
@@ -45,9 +45,9 @@ class BartLMV1(BartPretrainedModel):
 
     def forward(
         self,
-        input_ids: torch.Tensor = None,
-        attention_mask: torch.Tensor = None,
-        labels: torch.Tensor = None,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor,
+        labels: torch.Tensor,
     ) -> Seq2SeqLMOutput:
         outputs = self.model(
             input_ids=input_ids,
@@ -59,7 +59,9 @@ class BartLMV1(BartPretrainedModel):
         loss = None
         if labels is not None:
             # copy from https://github.com/pkchat-focus/FoCus/blob/main/classification_modules.py#L462 # noqa: E501
-            loss_fct = nn.CrossEntropyLoss(ignore_index=self.tokenizer.pad_token_id)
+            loss_fct = nn.CrossEntropyLoss(
+                ignore_index=self.tokenizer.pad_token_id,  # type: ignore
+            )
             shift_logits = logits[..., :-1, :].contiguous()
             shift_labels = labels[..., 1:].contiguous()
             loss = loss_fct(
@@ -69,7 +71,7 @@ class BartLMV1(BartPretrainedModel):
 
         return Seq2SeqLMOutput(
             loss=loss,
-            logits=logits,
+            logits=logits,  # type: ignore
             # не очень понимаю что это за ключ в контексте модели BART
             encoder_last_hidden_state=outputs[0],
         )

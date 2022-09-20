@@ -1,6 +1,6 @@
 from core.hyperparameters.bart_hyperparameters import BartHyperparametersV1
 
-from transformers import BartTokenizer
+from transformers import BartTokenizer  # type: ignore
 
 
 class BartFoCusTokenizerV1(BartTokenizer):
@@ -15,7 +15,7 @@ class BartFoCusTokenizerV1(BartTokenizer):
     def from_pretrained(
         cls,
         *args,
-        hyperparameters: BartHyperparametersV1 = None,
+        hyperparameters: BartHyperparametersV1,
         **kwargs,
     ):
 
@@ -27,6 +27,8 @@ class BartFoCusTokenizerV1(BartTokenizer):
                 hyperparameters.dialog_eos_token,
             ]
 
-            tokenizer.add_special_tokens({"additional_special_tokens": tokens})
+            tokenizer.add_special_tokens(
+                {"additional_special_tokens": tokens},  # type: ignore
+            )
 
         return tokenizer

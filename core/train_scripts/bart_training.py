@@ -7,7 +7,7 @@ from core.utils import ExperimentArgumentParserV1, TrainArgumentsV1
 from pytorch_lightning import Trainer
 from pytorch_lightning import seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.loggers import WandbLogger  # type: ignore
 
 
 def experiment_v1() -> None:
@@ -34,12 +34,12 @@ def experiment_v1() -> None:
         train_path_dataset="./datasets/FoCus/train_focus.json",
         valid_path_dataset="./datasets/FoCus/valid_focus.json",
         hyperparameters=hyperparameters,
-        tokenizer=tokenizer,
+        tokenizer=tokenizer,  # type: ignore
         is_debug=is_debug,
     )
     model = BARTLightningModelV1(
         hyperparameters=hyperparameters,
-        tokenizer=tokenizer,
+        tokenizer=tokenizer,  # type: ignore
         is_training=True,
     )
 

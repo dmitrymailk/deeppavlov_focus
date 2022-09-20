@@ -8,7 +8,7 @@ from pytorch_lightning import LightningModule
 
 import torch
 
-from transformers import BartConfig
+from transformers import BartConfig  # type: ignore
 from transformers.modeling_outputs import Seq2SeqLMOutput
 from transformers.optimization import get_linear_schedule_with_warmup
 
@@ -16,8 +16,8 @@ from transformers.optimization import get_linear_schedule_with_warmup
 class BARTLightningModelV1(LightningModule):
     def __init__(
         self,
-        hyperparameters: BartHyperparametersV1 = None,
-        tokenizer: BartFoCusTokenizerV1 = None,
+        hyperparameters: BartHyperparametersV1,
+        tokenizer: BartFoCusTokenizerV1,
         is_training: bool = False,
     ) -> None:
         super().__init__()
@@ -28,7 +28,7 @@ class BARTLightningModelV1(LightningModule):
         self.tokenizer = tokenizer
 
         self.model = BartLMV1(
-            config=BartConfig.from_pretrained(hyperparameters.model_name),
+            config=BartConfig.from_pretrained(hyperparameters.model_name),  # type: ignore
             hyperparameters=hyperparameters,
             tokenizer=tokenizer,
         )
@@ -37,9 +37,9 @@ class BARTLightningModelV1(LightningModule):
 
     def forward(
         self,
-        input_ids: torch.Tensor = None,
-        attention_mask: torch.Tensor = None,
-        labels: torch.Tensor = None,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor,
+        labels: torch.Tensor,
     ) -> Seq2SeqLMOutput:
         return self.model(
             input_ids=input_ids,
@@ -48,8 +48,8 @@ class BARTLightningModelV1(LightningModule):
         )
 
     def training_step(self, batch: List, batch_idx: int):
-        input_ids = batch["input_ids"]
-        attention_mask = batch["attention_mask"]
+        input_ids = batch["input_ids"]  # type: ignore
+        attention_mask = batch["attention_mask"]  # type: ignore
         labels = input_ids.clone()
 
         outputs = self.model.forward(
@@ -62,7 +62,7 @@ class BARTLightningModelV1(LightningModule):
 
         self.log(
             "train_loss",
-            loss,
+            loss,  # type: ignore
             on_step=True,
             on_epoch=True,
             prog_bar=True,
@@ -72,8 +72,8 @@ class BARTLightningModelV1(LightningModule):
         return loss
 
     def validation_step(self, batch: List, batch_idx: int):
-        input_ids = batch["input_ids"]
-        attention_mask = batch["attention_mask"]
+        input_ids = batch["input_ids"]  # type: ignore
+        attention_mask = batch["attention_mask"]  # type: ignore
         labels = input_ids.clone()
 
         outputs = self.model.forward(
@@ -84,7 +84,7 @@ class BARTLightningModelV1(LightningModule):
         loss = outputs.loss
         self.log(
             "valid_loss",
-            loss,
+            loss,  # type: ignore
             on_step=False,
             on_epoch=True,
             prog_bar=True,

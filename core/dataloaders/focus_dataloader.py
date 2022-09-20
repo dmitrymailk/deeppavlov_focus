@@ -1,7 +1,7 @@
 import json
 import os
 from itertools import chain
-from typing import Dict, List, TypedDict, cast
+from typing import Dict, List, Optional, TypedDict, cast
 
 from core.hyperparameters.bart_hyperparameters import BartHyperparametersV1
 from core.tokenizers.bart_tokenizers import BartFoCusTokenizerV1
@@ -372,6 +372,7 @@ class BartFoCusDatasetSampleDictV2(TypedDict):
     attention_mask: List[int]
     persona_grounding: List[int]
     knowledge_answer_index: int
+    persona_sep_index: int
     knowledge_sep_index: int
     dialog_bos_index: int
     dialog_eos_index: int
@@ -502,6 +503,7 @@ class BartFoCusDatasetSampleV2:
 
         attention_mask = [1] * len(input_sequence)
         knowledge_sep_index = 1 + len(flat_persona) + 1 + len(flat_knowledge)
+        persona_sep_index = 1 + len(flat_persona)
         dialog_bos_index = knowledge_sep_index + 1 + len(flat_dialog_history) + 1
         dialog_eos_index = dialog_bos_index + len(flat_bot_response) + 1
 
@@ -510,6 +512,7 @@ class BartFoCusDatasetSampleV2:
             "attention_mask": attention_mask,
             "persona_grounding": persona_grounding,
             "knowledge_answer_index": knowledge_answer_index,
+            "persona_sep_index": persona_sep_index,
             "knowledge_sep_index": knowledge_sep_index,
             "dialog_bos_index": dialog_bos_index,
             "dialog_eos_index": dialog_eos_index,
@@ -540,3 +543,114 @@ class PytorchFoCusDatasetV2:
         train_sample = train_sample.get_dict()
         train_sample = BartFoCusDatasetSampleDictV2(**train_sample)
         return train_sample
+
+
+class FoCusLightningDataModuleV2(LightningDataModule):
+    def __init__(
+        self,
+        train_path_dataset: str,
+        valid_path_dataset: str,
+        hyperparameters: BartHyperparametersV1,
+        tokenizer: BartFoCusTokenizerV1,
+        is_debug: bool = False,
+    ) -> None:
+        super().__init__()
+
+        self.train_path_dataset = train_path_dataset
+        self.valid_path_dataset = valid_path_dataset
+
+        self.hyperparameters = hyperparameters
+        self.tokenizer = tokenizer
+
+        self.is_debug = is_debug
+
+    def setup(self, stage: Optional[str] = None):
+        train_dataset = FoCusDatasetV1(input_dataset_path=self.train_path_dataset)
+        valid_dataset = FoCusDatasetV1(input_dataset_path=self.valid_path_dataset)
+
+        if self.is_debug:
+            train_dataset = train_dataset[:2]  # type: ignore
+            valid_dataset = valid_dataset[:2]  # type: ignore
+
+        self.train_dataset = PytorchFoCusDatasetV2(
+            dataset=train_dataset,  # type: ignore
+            tokenizer=self.tokenizer,
+            hyperparameters=self.hyperparameters,
+        )
+        self.valid_dataset = PytorchFoCusDatasetV2(
+            dataset=valid_dataset,  # type: ignore
+            tokenizer=self.tokenizer,
+            hyperparameters=self.hyperparameters,
+        )
+
+    def train_dataloader(self) -> DataLoader:
+        return DataLoader(
+            self.train_dataset,  # type: ignore
+            batch_size=self.hyperparameters.train_batch_size,
+            shuffle=True,
+            num_workers=os.cpu_count(),  # type: ignore
+            collate_fn=self.collate_fn,
+        )
+
+    def val_dataloader(self) -> DataLoader:
+        return DataLoader(
+            self.valid_dataset,  # type: ignore
+            batch_size=self.hyperparameters.valid_batch_size,
+            shuffle=False,
+            num_workers=os.cpu_count(),  # type: ignore
+            collate_fn=self.collate_fn,
+        )
+
+    def collate_fn(self, batch: List[BartFoCusDatasetSampleDictV2]) -> Dict:
+        max_len = 0
+        for item in batch:
+            max_len = max(max_len, len(item["input_ids"]))
+
+        pad_input_ids = []
+        pad_attention_mask = []
+        batch_persona_grounding = []
+        batch_knowledge_answer_index = []
+        batch_knowledge_sep_index = []
+        batch_persona_sep_index = []
+        batch_dialog_bos_index = []
+        batch_dialog_eos_index = []
+
+        for item in batch:
+            input_ids = item["input_ids"]
+            attention_mask = item["attention_mask"]
+            persona_grounding = item["persona_grounding"]
+            knowledge_answer_index = item["knowledge_answer_index"]
+            persona_sep_index = item["persona_sep_index"]
+            knowledge_sep_index = item["knowledge_sep_index"]
+            dialog_bos_index = item["dialog_bos_index"]
+            dialog_eos_index = item["dialog_eos_index"]
+
+            pad_tokens = cast(
+                List[int],
+                [self.tokenizer.pad_token_id] * (max_len - len(input_ids)),
+            )
+            pad_attention = [0] * (max_len - len(attention_mask))
+
+            input_ids.extend(pad_tokens)
+            attention_mask.extend(pad_attention)
+
+            pad_input_ids.append(input_ids)
+            pad_attention_mask.append(attention_mask)
+            batch_persona_grounding.append(persona_grounding)
+            batch_knowledge_answer_index.append([knowledge_answer_index])
+            batch_persona_sep_index.append([persona_sep_index])
+            batch_knowledge_sep_index.append([knowledge_sep_index])
+            batch_dialog_bos_index.append([dialog_bos_index])
+            batch_dialog_eos_index.append([dialog_eos_index])
+
+        return {
+            "input_ids": torch.tensor(pad_input_ids),
+            "input_ids_labels": torch.tensor(pad_input_ids),
+            "attention_mask": torch.tensor(pad_attention_mask),
+            "persona_grounding": torch.tensor(batch_persona_grounding),
+            "knowledge_answer_index": torch.tensor(batch_knowledge_answer_index),
+            "persona_sep_index": torch.tensor(batch_persona_sep_index),
+            "knowledge_sep_index": torch.tensor(batch_knowledge_sep_index),
+            "dialog_bos_index": torch.tensor(batch_dialog_bos_index),
+            "dialog_eos_index": torch.tensor(batch_dialog_eos_index),
+        }

@@ -198,10 +198,18 @@ class BARTLightningModelV2(LightningModule):
                 "train_lm_loss": lm_loss,  # type: ignore
                 "train_persona_loss": persona_loss,
                 "train_knowledge_loss": knowledge_loss,
+            },
+            on_step=True,
+            on_epoch=True,
+            logger=True,
+        )
+
+        self.log_dict(
+            {
                 "train_persona_accuracy": persona_accuracy,
                 "train_knowledge_accuracy": knowledge_accuracy,
             },
-            on_step=True,
+            on_step=False,
             on_epoch=True,
             logger=True,
         )
@@ -266,10 +274,18 @@ class BARTLightningModelV2(LightningModule):
                 "valid_lm_loss": lm_loss,  # type: ignore
                 "valid_persona_loss": persona_loss,
                 "valid_knowledge_loss": knowledge_loss,
+            },
+            on_step=True,
+            on_epoch=True,
+            logger=True,
+        )
+
+        self.log_dict(
+            {
                 "valid_persona_accuracy": persona_accuracy,
                 "valid_knowledge_accuracy": knowledge_accuracy,
             },
-            on_step=True,
+            on_step=False,
             on_epoch=True,
             logger=True,
         )

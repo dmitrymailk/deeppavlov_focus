@@ -1,6 +1,6 @@
 from typing import List
 
-from core.base_models.bart_models import BartLMV1, BartLMV2, BartLMV2Outputs
+from core.base_models.bart_models import BartLMV1, BartLMV2, BartLMV2Outputs, BartLMV3
 from core.dataloaders.focus_dataloader import FoCusLightningDataModuleV2DictV1
 from core.hyperparameters.bart_hyperparameters import (
     BartHyperparametersV1,
@@ -139,20 +139,17 @@ class BARTLightningModelV2(LightningModule):
         self,
         hyperparameters: BartHyperparametersV2,
         tokenizer: BartFoCusTokenizerV1,
+        base_model: BartLMV2 | BartLMV3,
         is_training: bool = False,
     ) -> None:
         super().__init__()
         self.hparams.update(hyperparameters.__dict__)
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["base_model"])
 
         self.hyperparameters = hyperparameters
         self.tokenizer = tokenizer
 
-        self.model = BartLMV2(
-            config=BartConfig.from_pretrained(hyperparameters.model_name),  # type: ignore
-            hyperparameters=hyperparameters,
-            tokenizer=tokenizer,
-        )
+        self.model = base_model
         if is_training:
             self.model.resize_token_embeddings(len(tokenizer))
 
@@ -174,12 +171,12 @@ class BARTLightningModelV2(LightningModule):
         persona_loss = outputs.persona_loss
         knowledge_loss = outputs.knowledge_loss
 
-        persona_accuracy = self.__compute_persona_accuracy(
+        persona_accuracy = self._compute_persona_accuracy(
             outputs=outputs,
             batch=batch,
         )
 
-        knowledge_accuracy = self.__compute_knowledge_accuracy(
+        knowledge_accuracy = self._compute_knowledge_accuracy(
             outputs=outputs,
             batch=batch,
         )
@@ -216,10 +213,10 @@ class BARTLightningModelV2(LightningModule):
 
         return loss
 
-    def __accuracy(self, preds: torch.Tensor, targets: torch.Tensor) -> float:
+    def _accuracy(self, preds: torch.Tensor, targets: torch.Tensor) -> float:
         return (preds == targets).float().mean().cpu().item()
 
-    def __compute_persona_accuracy(
+    def _compute_persona_accuracy(
         self,
         outputs: BartLMV2Outputs,
         batch: FoCusLightningDataModuleV2DictV1,
@@ -228,9 +225,9 @@ class BARTLightningModelV2(LightningModule):
         targets = batch["persona_grounding"]
         preds = (sigmoid(logits) > 0.5).int().view(-1)
         targets = targets.view(-1)
-        return self.__accuracy(preds, targets)
+        return self._accuracy(preds, targets)
 
-    def __compute_knowledge_accuracy(
+    def _compute_knowledge_accuracy(
         self,
         outputs: BartLMV2Outputs,
         batch: FoCusLightningDataModuleV2DictV1,
@@ -239,7 +236,7 @@ class BARTLightningModelV2(LightningModule):
         targets = batch["knowledge_answer_index"]
         preds = logits.argmax(dim=1).view(-1)
         targets = targets.view(-1)
-        return self.__accuracy(preds, targets)
+        return self._accuracy(preds, targets)
 
     def validation_step(self, batch: FoCusLightningDataModuleV2DictV1, batch_idx: int):
 
@@ -250,12 +247,12 @@ class BARTLightningModelV2(LightningModule):
         persona_loss = outputs.persona_loss
         knowledge_loss = outputs.knowledge_loss
 
-        persona_accuracy = self.__compute_persona_accuracy(
+        persona_accuracy = self._compute_persona_accuracy(
             outputs=outputs,
             batch=batch,
         )
 
-        knowledge_accuracy = self.__compute_knowledge_accuracy(
+        knowledge_accuracy = self._compute_knowledge_accuracy(
             outputs=outputs,
             batch=batch,
         )

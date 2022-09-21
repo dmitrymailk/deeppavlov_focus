@@ -377,6 +377,8 @@ class BartFoCusDatasetSampleDictV2(TypedDict):
     knowledge_answer_index: int
     persona_sep_index: int
     knowledge_sep_index: int
+    dialog_bos_index: int
+    dialog_eos_index: int
 
 
 class BartFoCusDatasetSampleV2:
@@ -505,6 +507,8 @@ class BartFoCusDatasetSampleV2:
         attention_mask = [1] * len(input_sequence)
         knowledge_sep_index = 1 + len(flat_persona) + 1 + len(flat_knowledge)
         persona_sep_index = 1 + len(flat_persona)
+        dialog_bos_index = knowledge_sep_index + 1 + len(flat_dialog_history) + 1
+        dialog_eos_index = dialog_bos_index + len(flat_bot_response) + 1
 
         return {
             "input_ids": input_sequence,
@@ -513,6 +517,8 @@ class BartFoCusDatasetSampleV2:
             "knowledge_answer_index": knowledge_answer_index,
             "persona_sep_index": persona_sep_index,
             "knowledge_sep_index": knowledge_sep_index,
+            "dialog_bos_index": dialog_bos_index,
+            "dialog_eos_index": dialog_eos_index,
         }
 
 
@@ -550,6 +556,8 @@ class FoCusLightningDataModuleV2DictV1(TypedDict):
     knowledge_answer_index: torch.Tensor
     persona_sep_index: torch.Tensor
     knowledge_sep_index: torch.Tensor
+    dialog_bos_index: torch.Tensor
+    dialog_eos_index: torch.Tensor
 
 
 class FoCusLightningDataModuleV2(LightningDataModule):
@@ -622,6 +630,8 @@ class FoCusLightningDataModuleV2(LightningDataModule):
         batch_knowledge_answer_index = []
         batch_knowledge_sep_index = []
         batch_persona_sep_index = []
+        batch_dialog_bos_index = []
+        batch_dialog_eos_index = []
 
         for item in batch:
             input_ids = item["input_ids"]
@@ -630,6 +640,8 @@ class FoCusLightningDataModuleV2(LightningDataModule):
             knowledge_answer_index = item["knowledge_answer_index"]
             persona_sep_index = item["persona_sep_index"]
             knowledge_sep_index = item["knowledge_sep_index"]
+            dialog_bos_index = item["dialog_bos_index"]
+            dialog_eos_index = item["dialog_eos_index"]
 
             pad_tokens = cast(
                 List[int],
@@ -646,6 +658,8 @@ class FoCusLightningDataModuleV2(LightningDataModule):
             batch_knowledge_answer_index.append([knowledge_answer_index])
             batch_persona_sep_index.append([persona_sep_index])
             batch_knowledge_sep_index.append([knowledge_sep_index])
+            batch_dialog_bos_index.append([dialog_bos_index])
+            batch_dialog_eos_index.append([dialog_eos_index])
 
         return {
             "input_ids": torch.tensor(pad_input_ids),
@@ -655,4 +669,6 @@ class FoCusLightningDataModuleV2(LightningDataModule):
             "knowledge_answer_index": torch.tensor(batch_knowledge_answer_index),
             "persona_sep_index": torch.tensor(batch_persona_sep_index),
             "knowledge_sep_index": torch.tensor(batch_knowledge_sep_index),
+            "dialog_bos_index": torch.tensor(batch_dialog_bos_index),
+            "dialog_eos_index": torch.tensor(batch_dialog_eos_index),
         }

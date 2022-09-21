@@ -26,6 +26,9 @@ while getopts "d:" opt; do
     esac
 done
 
+# clear dir
+rm -rf ./training_logs/bart/*
+
 if [ $debug -eq 1 ]; then
     bart_debug
 elif [ $debug -eq 0 ]; then

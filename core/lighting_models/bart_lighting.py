@@ -1,6 +1,7 @@
-from typing import Dict, List
+from typing import List
 
 from core.base_models.bart_models import BartLMV1, BartLMV2, BartLMV2Outputs
+from core.dataloaders.focus_dataloader import FoCusLightningDataModuleV2DictV1
 from core.hyperparameters.bart_hyperparameters import (
     BartHyperparametersV1,
     BartHyperparametersV2,
@@ -10,6 +11,7 @@ from core.tokenizers.bart_tokenizers import BartFoCusTokenizerV1
 from pytorch_lightning import LightningModule
 
 import torch
+from torch.nn.functional import sigmoid
 
 from transformers import BartConfig  # type: ignore
 from transformers.modeling_outputs import Seq2SeqLMOutput
@@ -160,7 +162,7 @@ class BARTLightningModelV2(LightningModule):
     ) -> BartLMV2Outputs:
         return self.model(**kwargs)
 
-    def training_step(self, batch: Dict, batch_idx: int):
+    def training_step(self, batch: FoCusLightningDataModuleV2DictV1, batch_idx: int):
 
         outputs: BartLMV2Outputs = self.model.forward(
             **batch,
@@ -171,6 +173,16 @@ class BARTLightningModelV2(LightningModule):
         lm_loss = outputs.lm_loss
         persona_loss = outputs.persona_loss
         knowledge_loss = outputs.knowledge_loss
+
+        persona_accuracy = self.__compute_persona_accuracy(
+            outputs=outputs,
+            batch=batch,
+        )
+
+        knowledge_accuracy = self.__compute_knowledge_accuracy(
+            outputs=outputs,
+            batch=batch,
+        )
 
         self.log(
             "train_loss",
@@ -186,6 +198,8 @@ class BARTLightningModelV2(LightningModule):
                 "train_lm_loss": lm_loss,  # type: ignore
                 "train_persona_loss": persona_loss,
                 "train_knowledge_loss": knowledge_loss,
+                "train_persona_accuracy": persona_accuracy,
+                "train_knowledge_accuracy": knowledge_accuracy,
             },
             on_step=True,
             on_epoch=True,
@@ -194,7 +208,32 @@ class BARTLightningModelV2(LightningModule):
 
         return loss
 
-    def validation_step(self, batch: Dict, batch_idx: int):
+    def __accuracy(self, preds: torch.Tensor, targets: torch.Tensor) -> float:
+        return (preds == targets).float().mean().cpu().item()
+
+    def __compute_persona_accuracy(
+        self,
+        outputs: BartLMV2Outputs,
+        batch: FoCusLightningDataModuleV2DictV1,
+    ) -> float:
+        logits = outputs.persona_logits
+        targets = batch["persona_grounding"]
+        preds = (sigmoid(logits) > 0.5).int().view(-1)
+        targets = targets.view(-1)
+        return self.__accuracy(preds, targets)
+
+    def __compute_knowledge_accuracy(
+        self,
+        outputs: BartLMV2Outputs,
+        batch: FoCusLightningDataModuleV2DictV1,
+    ) -> float:
+        logits = outputs.knowledge_logits
+        targets = batch["knowledge_answer_index"]
+        preds = logits.argmax(dim=1).view(-1)
+        targets = targets.view(-1)
+        return self.__accuracy(preds, targets)
+
+    def validation_step(self, batch: FoCusLightningDataModuleV2DictV1, batch_idx: int):
 
         outputs = self.model.forward(**batch)
         loss = outputs.loss
@@ -202,6 +241,16 @@ class BARTLightningModelV2(LightningModule):
         lm_loss = outputs.lm_loss
         persona_loss = outputs.persona_loss
         knowledge_loss = outputs.knowledge_loss
+
+        persona_accuracy = self.__compute_persona_accuracy(
+            outputs=outputs,
+            batch=batch,
+        )
+
+        knowledge_accuracy = self.__compute_knowledge_accuracy(
+            outputs=outputs,
+            batch=batch,
+        )
 
         self.log(
             "valid_loss",
@@ -217,6 +266,8 @@ class BARTLightningModelV2(LightningModule):
                 "valid_lm_loss": lm_loss,  # type: ignore
                 "valid_persona_loss": persona_loss,
                 "valid_knowledge_loss": knowledge_loss,
+                "valid_persona_accuracy": persona_accuracy,
+                "valid_knowledge_accuracy": knowledge_accuracy,
             },
             on_step=True,
             on_epoch=True,

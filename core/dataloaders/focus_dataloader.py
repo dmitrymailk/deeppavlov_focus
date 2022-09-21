@@ -542,6 +542,16 @@ class PytorchFoCusDatasetV2:
         return train_sample
 
 
+class FoCusLightningDataModuleV2DictV1(TypedDict):
+    input_ids: torch.Tensor
+    input_ids_labels: torch.Tensor
+    attention_mask: torch.Tensor
+    persona_grounding: torch.Tensor
+    knowledge_answer_index: torch.Tensor
+    persona_sep_index: torch.Tensor
+    knowledge_sep_index: torch.Tensor
+
+
 class FoCusLightningDataModuleV2(LightningDataModule):
     def __init__(
         self,
@@ -598,7 +608,10 @@ class FoCusLightningDataModuleV2(LightningDataModule):
             collate_fn=self.collate_fn,
         )
 
-    def collate_fn(self, batch: List[BartFoCusDatasetSampleDictV2]) -> Dict:
+    def collate_fn(
+        self,
+        batch: List[BartFoCusDatasetSampleDictV2],
+    ) -> FoCusLightningDataModuleV2DictV1:
         max_len = 0
         for item in batch:
             max_len = max(max_len, len(item["input_ids"]))

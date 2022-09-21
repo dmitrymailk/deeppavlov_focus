@@ -1,4 +1,4 @@
-from typing import Optional, TypedDict
+from typing import Optional
 
 from core.hyperparameters.bart_hyperparameters import (
     BartHyperparametersV1,
@@ -11,6 +11,7 @@ from torch import nn
 
 from transformers import BartConfig, BartModel, BartPretrainedModel  # type: ignore
 from transformers.modeling_outputs import Seq2SeqLMOutput
+from transformers.utils import ModelOutput  # type: ignore
 
 
 class BartLMV1(BartPretrainedModel):
@@ -80,9 +81,9 @@ class BartLMV1(BartPretrainedModel):
         )
 
 
-class BartLMV2Outputs(TypedDict):
+class BartLMV2Outputs(ModelOutput):
     loss: Optional[torch.Tensor]
-    LM_loss: Optional[torch.Tensor]
+    lm_loss: Optional[torch.Tensor]
     persona_loss: Optional[torch.Tensor]
     knowledge_loss: Optional[torch.Tensor]
 
@@ -208,7 +209,7 @@ class BartLMV2(BartPretrainedModel):
         return BartLMV2Outputs(
             # loss
             loss=loss,
-            LM_loss=lm_loss,
+            lm_loss=lm_loss,
             persona_loss=persona_loss,
             knowledge_loss=knowledge_loss,
             # logits

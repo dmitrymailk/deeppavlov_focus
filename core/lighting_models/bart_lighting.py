@@ -1,6 +1,6 @@
 from typing import Dict, List
 
-from core.base_models.bart_models import BartLMV1, BartLMV2
+from core.base_models.bart_models import BartLMV1, BartLMV2, BartLMV2Outputs
 from core.hyperparameters.bart_hyperparameters import (
     BartHyperparametersV1,
     BartHyperparametersV2,
@@ -156,23 +156,21 @@ class BARTLightningModelV2(LightningModule):
 
     def forward(
         self,
-        input_ids: torch.Tensor,
-        attention_mask: torch.Tensor,
-        labels: torch.Tensor,
-    ) -> Seq2SeqLMOutput:
-        return self.model(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            labels=labels,
-        )
+        **kwargs,
+    ) -> BartLMV2Outputs:
+        return self.model(**kwargs)
 
     def training_step(self, batch: Dict, batch_idx: int):
 
-        outputs = self.model.forward(
+        outputs: BartLMV2Outputs = self.model.forward(
             **batch,
         )
 
         loss = outputs.loss
+
+        lm_loss = outputs.lm_loss
+        persona_loss = outputs.persona_loss
+        knowledge_loss = outputs.knowledge_loss
 
         self.log(
             "train_loss",
@@ -183,18 +181,45 @@ class BARTLightningModelV2(LightningModule):
             logger=True,
         )
 
+        self.log_dict(
+            {
+                "train_lm_loss": lm_loss,  # type: ignore
+                "train_persona_loss": persona_loss,
+                "train_knowledge_loss": knowledge_loss,
+            },
+            on_step=True,
+            on_epoch=True,
+            logger=True,
+        )
+
         return loss
 
     def validation_step(self, batch: Dict, batch_idx: int):
 
         outputs = self.model.forward(**batch)
         loss = outputs.loss
+
+        lm_loss = outputs.lm_loss
+        persona_loss = outputs.persona_loss
+        knowledge_loss = outputs.knowledge_loss
+
         self.log(
             "valid_loss",
             loss,  # type: ignore
             on_step=False,
             on_epoch=True,
             prog_bar=True,
+            logger=True,
+        )
+
+        self.log_dict(
+            {
+                "valid_lm_loss": lm_loss,  # type: ignore
+                "valid_persona_loss": persona_loss,
+                "valid_knowledge_loss": knowledge_loss,
+            },
+            on_step=True,
+            on_epoch=True,
             logger=True,
         )
 

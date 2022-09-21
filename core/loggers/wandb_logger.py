@@ -20,7 +20,7 @@ class WandbLoggerV1:
         if self.is_debug:
             project = "Test"
         else:
-            project = "Test"
+            project = "focus"
 
         return WandbLogger(
             project=project,

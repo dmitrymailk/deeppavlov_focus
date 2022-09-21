@@ -53,7 +53,7 @@ def experiment_v1() -> None:
 
     wandb_logger = WandbLoggerV1(
         hyperparameters=hyperparameters,
-        is_debug=is_debug,
+        is_debug=True,
     )
 
     checkpoint_callback = ModelCheckpoint(
@@ -108,7 +108,7 @@ def experiment_v2() -> None:
 
     wandb_logger = WandbLoggerV1(
         hyperparameters=hyperparameters,
-        is_debug=is_debug,
+        is_debug=True,
     )
 
     checkpoint_callback = ModelCheckpoint(

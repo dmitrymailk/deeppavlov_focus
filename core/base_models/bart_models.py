@@ -152,8 +152,11 @@ class BartLMV2(BartPretrainedModel):
         )
         last_outputs: torch.Tensor = bart_outputs[0]
         lm_logits: torch.Tensor = self.lm_head(last_outputs)
-
-        loss: torch.Tensor = torch.tensor(0)
+        loss: torch.Tensor = torch.tensor(
+            0,
+            device=self.device,
+            dtype=torch.float32,
+        )
         persona_loss = None
         knowledge_loss = None
         lm_loss = None

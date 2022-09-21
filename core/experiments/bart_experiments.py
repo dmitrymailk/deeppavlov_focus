@@ -6,6 +6,7 @@ from core.hyperparameters.bart_hyperparameters import (
     BartHyperparametersV1,
     BartHyperparametersV2,
 )
+from core.hyperparameters.lighting_hyperparameters import LightingHyperparametersV1
 from core.lighting_models.bart_lighting import (
     BARTLightningModelV1,
     BARTLightningModelV2,
@@ -82,8 +83,13 @@ def experiment_v2() -> None:
     parser = ExperimentArgumentParserV1()
     args: TrainArgumentsV1 = parser.args
 
+    lighting_hyperparameters = LightingHyperparametersV1(
+        precision=16,
+    ).__dict__
+
     hyperparameters = BartHyperparametersV2(
         gradient_accumulation_steps=3,
+        lighting_hyperparameters=lighting_hyperparameters,
     )
     seed_everything(hyperparameters.seed)
 
@@ -123,6 +129,7 @@ def experiment_v2() -> None:
         accelerator="gpu",
         logger=wandb_logger.logger,
         callbacks=[checkpoint_callback],
+        **lighting_hyperparameters,
     )
 
     trainer.fit(model, datamodule=data_module)

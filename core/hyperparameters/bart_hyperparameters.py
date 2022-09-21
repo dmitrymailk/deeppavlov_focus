@@ -1,3 +1,6 @@
+from typing import Dict
+
+
 class BartHyperparametersV1:
     def __init__(
         self,
@@ -83,6 +86,7 @@ class BartHyperparametersV2:
         model_name: str = "facebook/bart-base",
         persona_labels_amount: int = 5,
         knowledge_labels_amount: int = 10,
+        lighting_hyperparameters: Dict = {},
     ) -> None:
 
         """
@@ -123,3 +127,4 @@ class BartHyperparametersV2:
 
         self.persona_labels_amount = persona_labels_amount
         self.knowledge_labels_amount = knowledge_labels_amount
+        self.lighting_hyperparameters = lighting_hyperparameters

@@ -1,4 +1,7 @@
-from core.hyperparameters.bart_hyperparameters import BartHyperparametersV1
+from core.hyperparameters.bart_hyperparameters import (
+    BartHyperparametersV1,
+    BartHyperparametersV2,
+)
 
 from transformers import BartTokenizer  # type: ignore
 
@@ -15,7 +18,7 @@ class BartFoCusTokenizerV1(BartTokenizer):
     def from_pretrained(
         cls,
         *args,
-        hyperparameters: BartHyperparametersV1,
+        hyperparameters: BartHyperparametersV1 | BartHyperparametersV2,
         **kwargs,
     ):
 

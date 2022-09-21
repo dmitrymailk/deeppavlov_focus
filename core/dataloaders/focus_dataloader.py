@@ -3,7 +3,10 @@ import os
 from itertools import chain
 from typing import Dict, List, Optional, TypedDict, cast
 
-from core.hyperparameters.bart_hyperparameters import BartHyperparametersV1
+from core.hyperparameters.bart_hyperparameters import (
+    BartHyperparametersV1,
+    BartHyperparametersV2,
+)
 from core.tokenizers.bart_tokenizers import BartFoCusTokenizerV1
 from core.utils import FoCusTfIdf
 
@@ -383,7 +386,7 @@ class BartFoCusDatasetSampleV2:
         self,
         focus_dataset_sample: FoCusDatasetSampleDictV1,
         tokenizer: BartFoCusTokenizerV1,
-        h_params: BartHyperparametersV1,
+        h_params: BartHyperparametersV2,
     ) -> None:
         self.focus_dataset_sample = focus_dataset_sample
         self.tokenizer = tokenizer
@@ -524,7 +527,7 @@ class PytorchFoCusDatasetV2:
         self,
         dataset: FoCusDatasetV1,
         tokenizer: BartFoCusTokenizerV1,
-        hyperparameters: BartHyperparametersV1,
+        hyperparameters: BartHyperparametersV2,
     ) -> None:
         self.dataset = dataset
         self.hyperparameters = hyperparameters
@@ -550,7 +553,7 @@ class FoCusLightningDataModuleV2(LightningDataModule):
         self,
         train_path_dataset: str,
         valid_path_dataset: str,
-        hyperparameters: BartHyperparametersV1,
+        hyperparameters: BartHyperparametersV2,
         tokenizer: BartFoCusTokenizerV1,
         is_debug: bool = False,
     ) -> None:

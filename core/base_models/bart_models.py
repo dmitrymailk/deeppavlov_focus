@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, TypedDict
 
 from core.hyperparameters.bart_hyperparameters import (
     BartHyperparametersV1,
@@ -80,6 +80,18 @@ class BartLMV1(BartPretrainedModel):
         )
 
 
+class BartLMV2Outputs(TypedDict):
+    loss: Optional[torch.Tensor]
+    LM_loss: Optional[torch.Tensor]
+    persona_loss: Optional[torch.Tensor]
+    knowledge_loss: Optional[torch.Tensor]
+
+    lm_logits: torch.Tensor
+    persona_logits: torch.Tensor
+    knowledge_logits: torch.Tensor
+    last_hidden_state: torch.Tensor
+
+
 class BartLMV2(BartPretrainedModel):
     """
     Модель у которой следующий лосс
@@ -129,62 +141,79 @@ class BartLMV2(BartPretrainedModel):
         knowledge_answer_index: Optional[torch.Tensor],
         persona_sep_index: Optional[torch.Tensor],
         knowledge_sep_index: Optional[torch.Tensor],
-        dialog_bos_index: Optional[torch.Tensor],
-        dialog_eos_index: Optional[torch.Tensor],
-    ) -> Seq2SeqLMOutput:
-        outputs = self.model(
+    ) -> BartLMV2Outputs:
+        assert persona_sep_index is not None
+        assert knowledge_sep_index is not None
+
+        bart_outputs = self.model(
             input_ids=input_ids,
             attention_mask=attention_mask,
         )
+        last_outputs: torch.Tensor = bart_outputs[0]
+        lm_logits: torch.Tensor = self.lm_head(last_outputs)
 
-        logits: torch.Tensor = self.lm_head(outputs[0])
+        loss: torch.Tensor = torch.tensor(0)
+        persona_loss = None
+        knowledge_loss = None
+        lm_loss = None
 
-        loss = 0.0
+        # compute lm loss
         if input_ids_labels is not None:
             # copy from https://github.com/pkchat-focus/FoCus/blob/main/classification_modules.py#L462 # noqa: E501
             loss_fct = nn.CrossEntropyLoss(
                 ignore_index=self.tokenizer.pad_token_id,  # type: ignore
             )
-            shift_logits = logits[..., :-1, :].contiguous()
+            shift_logits = lm_logits[..., :-1, :].contiguous()
             shift_labels = input_ids_labels[..., 1:].contiguous()
-            loss += loss_fct(
+            lm_loss = loss_fct(
                 shift_logits.view(-1, shift_logits.size(-1)),
                 shift_labels.view(-1),
             )
+            loss += lm_loss
 
+        # extract persona vectors
+        persona_sep_vectors = []
+        for persona_sep_index_i, batch_item in zip(persona_sep_index, last_outputs):
+            persona_sep_vector = batch_item[persona_sep_index_i]
+            persona_sep_vectors.append(persona_sep_vector)
+
+        persona_vector = torch.vstack(persona_sep_vectors)
+        persona_logits = self.persona_head(persona_vector)
+
+        # compute persona loss
         if persona_grounding is not None:
-            assert persona_sep_index is not None
-            last_outputs = outputs[0]
-            persona_sep_vectors = []
-            for persona_sep_index_i, batch_item in zip(persona_sep_index, last_outputs):
-                persona_sep_vector = batch_item[persona_sep_index_i]
-                persona_sep_vectors.append(persona_sep_vector)
-
-            persona_vector = torch.vstack(persona_sep_vectors)
-            persona_logits = self.persona_head(persona_vector)
             loss_fct = nn.BCEWithLogitsLoss()
             persona_grounding = persona_grounding.type_as(persona_logits)
-            loss += loss_fct(persona_logits, persona_grounding)
+            persona_loss = loss_fct(persona_logits, persona_grounding)
+            loss += persona_loss
 
+        # extract knowledge vectors
+        knowledge_sep_vectors = []
+        for knowledge_sep_index_i, batch_item in zip(
+            knowledge_sep_index,
+            last_outputs,
+        ):
+            knowledge_sep_vector = batch_item[knowledge_sep_index_i]
+            knowledge_sep_vectors.append(knowledge_sep_vector)
+
+        knowledge_vector = torch.vstack(knowledge_sep_vectors)
+        knowledge_logits = self.knowledge_head(knowledge_vector)
+
+        # compute knowledge loss
         if knowledge_answer_index is not None:
-            assert knowledge_sep_index is not None
-            last_outputs = outputs[0]
-            knowledge_sep_vectors = []
-            for knowledge_sep_index_i, batch_item in zip(
-                knowledge_sep_index,
-                last_outputs,
-            ):
-                knowledge_sep_vector = batch_item[knowledge_sep_index_i]
-                knowledge_sep_vectors.append(knowledge_sep_vector)
-
-            knowledge_vector = torch.vstack(knowledge_sep_vectors)
-
-            knowledge_logits = self.knowledge_head(knowledge_vector)
             loss_fct = nn.CrossEntropyLoss()
-            loss += loss_fct(knowledge_logits, knowledge_answer_index.view(-1))
+            knowledge_loss = loss_fct(knowledge_logits, knowledge_answer_index.view(-1))
+            loss += knowledge_loss
 
-        return Seq2SeqLMOutput(
-            loss=loss,  # type: ignore
-            logits=logits,  # type: ignore
-            encoder_last_hidden_state=outputs[0],
+        return BartLMV2Outputs(
+            # loss
+            loss=loss,
+            LM_loss=lm_loss,
+            persona_loss=persona_loss,
+            knowledge_loss=knowledge_loss,
+            # logits
+            lm_logits=lm_logits,
+            persona_logits=persona_logits,
+            knowledge_logits=knowledge_logits,
+            last_hidden_state=bart_outputs[0],
         )

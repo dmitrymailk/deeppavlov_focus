@@ -239,7 +239,7 @@ def experiment_v4() -> None:
 
     lighting_hyperparameters = LightingHyperparametersV1(
         precision=16,
-        max_epochs=2,
+        max_epochs=1,
     ).__dict__
 
     hyperparameters = BartHyperparametersV3(
@@ -265,10 +265,14 @@ def experiment_v4() -> None:
         hyperparameters=hyperparameters,
         tokenizer=tokenizer,  # type: ignore
     )
-    model = BARTLightningModelV2(
-        hyperparameters=hyperparameters,
-        tokenizer=tokenizer,  # type: ignore
-        is_training=True,
+    # model = BARTLightningModelV2(
+    #     hyperparameters=hyperparameters,
+    #     tokenizer=tokenizer,  # type: ignore
+    #     is_training=True,
+    #     base_model=base_model,
+    # )
+    model = BARTLightningModelV2.load_from_checkpoint(
+        "./Test/3ntglw7k/checkpoints/facebook/bart-base-epoch=00-val_loss=0.00.ckpt",
         base_model=base_model,
     )
 
@@ -281,7 +285,7 @@ def experiment_v4() -> None:
         save_top_k=1,
         monitor="valid_loss",
         mode="min",
-        filename=f"{hyperparameters.model_name}" + "-{epoch:02d}-{val_loss:.2f}",
+        filename=f"{hyperparameters.model_name}" + "-{epoch:02d}-{valid_loss:.2f}",
     )
 
     trainer = Trainer(

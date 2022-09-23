@@ -239,10 +239,10 @@ def experiment_v4() -> None:
 
     lighting_hyperparameters = LightingHyperparametersV1(
         precision=16,
+        max_epochs=2,
     ).__dict__
 
     hyperparameters = BartHyperparametersV3(
-        gradient_accumulation_steps=3,
         lighting_hyperparameters=lighting_hyperparameters,
     )
     seed_everything(hyperparameters.seed)
@@ -285,7 +285,6 @@ def experiment_v4() -> None:
     )
 
     trainer = Trainer(
-        max_epochs=hyperparameters.train_epochs,
         accelerator="gpu",
         logger=wandb_logger.logger,
         callbacks=[checkpoint_callback],

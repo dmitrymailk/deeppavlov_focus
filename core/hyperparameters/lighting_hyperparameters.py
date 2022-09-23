@@ -10,6 +10,7 @@ class LightingHyperparametersV1:
         auto_scale_batch_size: Optional[str] = None,
         profiler: str = "simple",
         deterministic: bool = True,
+        max_epochs: int = 1,
     ) -> None:
         self.precision = precision
         self.accumulate_grad_batches = accumulate_grad_batches
@@ -17,3 +18,4 @@ class LightingHyperparametersV1:
         self.auto_scale_batch_size = auto_scale_batch_size
         self.profiler = profiler
         self.deterministic = deterministic
+        self.max_epochs = max_epochs

@@ -137,7 +137,6 @@ class BartHyperparametersV3:
         learning_rate: float = 6.25e-5,
         adam_epsilon: float = 1e-8,
         weight_decay: float = 0.01,
-        gradient_accumulation_steps: int = 1,
         train_epochs: int = 1,
         model_name: str = "facebook/bart-base",
         persona_labels_amount: int = 5,
@@ -186,9 +185,6 @@ class BartHyperparametersV3:
         self.learning_rate = learning_rate
         self.adam_epsilon = adam_epsilon
         self.weight_decay = weight_decay
-
-        self.gradient_accumulation_steps = gradient_accumulation_steps
-        self.train_epochs = train_epochs
 
         self.model_name = model_name
 

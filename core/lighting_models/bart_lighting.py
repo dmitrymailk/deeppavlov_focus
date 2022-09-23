@@ -1,12 +1,21 @@
 from typing import List
 
-from core.base_models.bart_models import BartLMV1, BartLMV2, BartLMV2Outputs, BartLMV3
-from core.dataloaders.focus_dataloader import FoCusLightningDataModuleV2DictV1
+from core.base_models.bart_models import (
+    BartLMV1,
+    BartLMV2,
+    BartLMV2Outputs,
+    BartLMV3,
+    BartLMV4,
+)
+from core.dataloaders.focus_dataloader import (
+    FoCusLightningDataModuleV2DictV1,
+)
 from core.hyperparameters.bart_hyperparameters import (
     BartHyperparametersV1,
     BartHyperparametersV2,
+    BartHyperparametersV3,
 )
-from core.tokenizers.bart_tokenizers import BartFoCusTokenizerV1
+from core.tokenizers.bart_tokenizers import BartFoCusTokenizerV1, BartFoCusTokenizerV2
 
 from pytorch_lightning import LightningModule
 
@@ -137,9 +146,9 @@ class BARTLightningModelV1(LightningModule):
 class BARTLightningModelV2(LightningModule):
     def __init__(
         self,
-        hyperparameters: BartHyperparametersV2,
-        tokenizer: BartFoCusTokenizerV1,
-        base_model: BartLMV2 | BartLMV3,
+        hyperparameters: BartHyperparametersV2 | BartHyperparametersV3,
+        tokenizer: BartFoCusTokenizerV1 | BartFoCusTokenizerV2,
+        base_model: BartLMV2 | BartLMV3 | BartLMV4,
         is_training: bool = False,
     ) -> None:
         super().__init__()
@@ -159,7 +168,11 @@ class BARTLightningModelV2(LightningModule):
     ) -> BartLMV2Outputs:
         return self.model(**kwargs)
 
-    def training_step(self, batch: FoCusLightningDataModuleV2DictV1, batch_idx: int):
+    def training_step(
+        self,
+        batch,
+        batch_idx: int,
+    ):
 
         outputs: BartLMV2Outputs = self.model.forward(
             **batch,
@@ -238,7 +251,7 @@ class BARTLightningModelV2(LightningModule):
         targets = targets.view(-1)
         return self._accuracy(preds, targets)
 
-    def validation_step(self, batch: FoCusLightningDataModuleV2DictV1, batch_idx: int):
+    def validation_step(self, batch, batch_idx: int):
 
         outputs = self.model.forward(**batch)
         loss = outputs.loss

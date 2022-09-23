@@ -6,6 +6,7 @@ from core.base_models.bart_models import (
     BartLMV2Outputs,
     BartLMV3,
     BartLMV4,
+    BartLMV5,
 )
 from core.dataloaders.focus_dataloader import (
     FoCusLightningDataModuleV2DictV1,
@@ -148,7 +149,7 @@ class BARTLightningModelV2(LightningModule):
         self,
         hyperparameters: BartHyperparametersV2 | BartHyperparametersV3,
         tokenizer: BartFoCusTokenizerV1 | BartFoCusTokenizerV2,
-        base_model: BartLMV2 | BartLMV3 | BartLMV4,
+        base_model: BartLMV2 | BartLMV3 | BartLMV4 | BartLMV5,
         is_training: bool = False,
     ) -> None:
         super().__init__()

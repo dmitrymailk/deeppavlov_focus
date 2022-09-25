@@ -623,23 +623,17 @@ class BartLMV5(BartPretrainedModel):
     def forward(
         self,
         input_ids: torch.Tensor,
-        input_ids_labels: Optional[torch.Tensor],
         attention_mask: torch.Tensor,
-        persona_grounding: Optional[torch.Tensor],
-        knowledge_answer_index: Optional[torch.Tensor],
-        persona_sep_index: torch.Tensor,
-        knowledge_candidates_sep_index: torch.Tensor,
-        query_eos_index: torch.Tensor,
-        query_bos_index: torch.Tensor,
-        bos_index: torch.Tensor,
-        eos_index: torch.Tensor,
+        persona_sep_index: Optional[torch.Tensor] = None,
+        query_eos_index: Optional[torch.Tensor] = None,
+        query_bos_index: Optional[torch.Tensor] = None,
+        bos_index: Optional[torch.Tensor] = None,
+        eos_index: Optional[torch.Tensor] = None,
+        input_ids_labels: Optional[torch.Tensor] = None,
+        persona_grounding: Optional[torch.Tensor] = None,
+        knowledge_answer_index: Optional[torch.Tensor] = None,
+        knowledge_candidates_sep_index: Optional[torch.Tensor] = None,
     ) -> BartLMV2Outputs:
-        assert persona_sep_index is not None
-        assert knowledge_candidates_sep_index is not None
-        assert query_eos_index is not None
-        assert query_bos_index is not None
-        assert bos_index is not None
-        assert eos_index is not None
 
         bart_outputs = self.model(
             input_ids=input_ids,
@@ -656,6 +650,8 @@ class BartLMV5(BartPretrainedModel):
         persona_loss = None
         knowledge_loss = None
         lm_loss = None
+        persona_logits = None
+        knowledge_logits = None
 
         # compute lm loss
         if input_ids_labels is not None:
@@ -673,82 +669,95 @@ class BartLMV5(BartPretrainedModel):
 
         # extract persona vectors
         # <query></query>[EOS][SEP_persona][BOS]
-        persona_feature_vectors = []
-        for (
-            persona_sep_index_i,
-            batch_item,
-            query_eos_i,
-            query_bos_i,
-            bos_i,
-            eos_i,
-        ) in zip(
-            persona_sep_index,
-            last_outputs,
-            query_eos_index,
-            query_bos_index,
-            bos_index,
-            eos_index,
-        ):
-            persona_sep_vector = batch_item[persona_sep_index_i]
-            query_eos_vector = batch_item[query_eos_i]
-            query_bos_vector = batch_item[query_bos_i]
-            bos_vector = batch_item[bos_i]
-            eos_vector = batch_item[eos_i]
+        if persona_sep_index is not None:
+            assert query_eos_index is not None
+            assert query_bos_index is not None
+            assert bos_index is not None
+            assert eos_index is not None
 
-            persona_sep_vector += (
-                query_eos_vector + query_bos_vector + bos_vector + eos_vector
-            )
-            persona_feature_vectors.append(persona_sep_vector)
+            persona_feature_vectors = []
+            for (
+                persona_sep_index_i,
+                batch_item,
+                query_eos_i,
+                query_bos_i,
+                bos_i,
+                eos_i,
+            ) in zip(
+                persona_sep_index,
+                last_outputs,
+                query_eos_index,
+                query_bos_index,
+                bos_index,
+                eos_index,
+            ):
+                persona_sep_vector = batch_item[persona_sep_index_i]
+                query_eos_vector = batch_item[query_eos_i]
+                query_bos_vector = batch_item[query_bos_i]
+                bos_vector = batch_item[bos_i]
+                eos_vector = batch_item[eos_i]
 
-        persona_vector = torch.vstack(persona_feature_vectors)
-        persona_logits = self.persona_head(persona_vector)
+                persona_sep_vector += (
+                    query_eos_vector + query_bos_vector + bos_vector + eos_vector
+                )
+                persona_feature_vectors.append(persona_sep_vector)
 
-        # compute persona loss
-        if persona_grounding is not None:
-            loss_fct = nn.BCEWithLogitsLoss()
-            persona_grounding = persona_grounding.type_as(persona_logits)
-            persona_loss = loss_fct(persona_logits, persona_grounding)
-            loss += persona_loss
+            persona_vector = torch.vstack(persona_feature_vectors)
+            persona_logits = self.persona_head(persona_vector)
 
-        # extract knowledge vectors
-        # <query></query>[EOS][SEP_knowledge_candidates][BOS]
-        knowledge_candidates_feature_vectors = []
-        for (
-            knowledge_sep_index_i,
-            batch_item,
-            query_bos_i,
-            query_eos_i,
-            bos_i,
-            eos_i,
-        ) in zip(
-            knowledge_candidates_sep_index,
-            last_outputs,
-            query_bos_index,
-            query_eos_index,
-            bos_index,
-            eos_index,
-        ):
-            knowledge_sep_vector = batch_item[knowledge_sep_index_i]
-            query_eos_vector = batch_item[query_eos_i]
-            query_bos_vector = batch_item[query_bos_i]
-            bos_vector = batch_item[bos_i]
-            eos_vector = batch_item[eos_i]
+            # compute persona loss
+            if persona_grounding is not None:
+                loss_fct = nn.BCEWithLogitsLoss()
+                persona_grounding = persona_grounding.type_as(persona_logits)
+                persona_loss = loss_fct(persona_logits, persona_grounding)
+                loss += persona_loss
 
-            knowledge_sep_vector += (
-                query_eos_vector + query_bos_vector + bos_vector + eos_vector
-            )
-            knowledge_candidates_feature_vectors.append(
-                knowledge_sep_vector,
-            )
+        if knowledge_candidates_sep_index is not None:
+            # extract knowledge vectors
+            # <query></query>[EOS][SEP_knowledge_candidates][BOS]
+            assert query_eos_index is not None
+            assert query_bos_index is not None
+            assert bos_index is not None
+            assert eos_index is not None
+            knowledge_candidates_feature_vectors = []
+            for (
+                knowledge_sep_index_i,
+                batch_item,
+                query_bos_i,
+                query_eos_i,
+                bos_i,
+                eos_i,
+            ) in zip(
+                knowledge_candidates_sep_index,
+                last_outputs,
+                query_bos_index,
+                query_eos_index,
+                bos_index,
+                eos_index,
+            ):
+                knowledge_sep_vector = batch_item[knowledge_sep_index_i]
+                query_eos_vector = batch_item[query_eos_i]
+                query_bos_vector = batch_item[query_bos_i]
+                bos_vector = batch_item[bos_i]
+                eos_vector = batch_item[eos_i]
 
-        knowledge_vector = torch.vstack(knowledge_candidates_feature_vectors)
-        knowledge_logits = self.knowledge_candidates_head(knowledge_vector)
+                knowledge_sep_vector += (
+                    query_eos_vector + query_bos_vector + bos_vector + eos_vector
+                )
+                knowledge_candidates_feature_vectors.append(
+                    knowledge_sep_vector,
+                )
 
-        # compute knowledge loss
-        if knowledge_answer_index is not None:
-            loss_fct = nn.CrossEntropyLoss()
-            knowledge_loss = loss_fct(knowledge_logits, knowledge_answer_index.view(-1))
-            loss += knowledge_loss
+            knowledge_vector = torch.vstack(knowledge_candidates_feature_vectors)
+            knowledge_logits = self.knowledge_candidates_head(knowledge_vector)
+
+            # compute knowledge loss
+            if knowledge_answer_index is not None:
+                loss_fct = nn.CrossEntropyLoss()
+                knowledge_loss = loss_fct(
+                    knowledge_logits, knowledge_answer_index.view(-1)
+                )
+                loss += knowledge_loss
 
         return BartLMV2Outputs(
             # loss

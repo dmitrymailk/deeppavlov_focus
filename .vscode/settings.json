@@ -8,7 +8,7 @@
 	"python.linting.flake8Args": [
 		"--max-line-length=90",
 		"--ignore=E203",
-		"--max-complexity=6"
+		"--max-complexity=8"
 	],
 	"python.analysis.typeCheckingMode": "basic",
 	"python.analysis.ignore": [

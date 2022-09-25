@@ -676,6 +676,8 @@ class BartFoCusDatasetSampleDictV3(TypedDict):
     input_ids: List[int]
     attention_mask: List[int]
     persona_grounding: List[int]
+    query_input_ids: List[int]
+    query_input_attention_mask: List[int]
     knowledge_candidates_answer_index: int
     persona_sep_index: int
     knowledge_candidates_sep_index: int
@@ -831,16 +833,24 @@ class BartFoCusDatasetSampleV3:
         attention_mask = [1] * len(input_ids)
         bos_index = 0
         persona_sep_index = len(flat_persona) + 1
-        knowledge_candidates_sep_index = persona_sep_index + len(
-            flat_knowledge_candidates,
+        knowledge_candidates_sep_index = (
+            persona_sep_index
+            + len(
+                flat_knowledge_candidates,
+            )
+            + 1
         )
         query_bos_index = knowledge_candidates_sep_index + 1
-        query_eos_index = query_bos_index + len(flat_dialog_query)
+        query_eos_index = query_bos_index + len(flat_dialog_query) + 1
         eos_index = len(input_ids) - 1
+        query_input_ids = input_ids[: query_eos_index + 2]
+        query_input_attention_mask = attention_mask[: query_eos_index + 2]
 
         return BartFoCusDatasetSampleDictV3(
             input_ids=input_ids,
+            query_input_ids=query_input_ids,
             attention_mask=attention_mask,
+            query_input_attention_mask=query_input_attention_mask,
             persona_grounding=persona_grounding,
             knowledge_candidates_sep_index=knowledge_candidates_sep_index,
             bos_index=bos_index,
@@ -880,6 +890,8 @@ class PytorchFoCusDatasetV3(Dataset):
 class FoCusLightningDataModuleV3DictV1(TypedDict):
     input_ids: torch.Tensor
     input_ids_labels: torch.Tensor
+    query_input_ids: torch.Tensor
+    query_input_attention_mask: torch.Tensor
     attention_mask: torch.Tensor
     persona_grounding: torch.Tensor
     knowledge_answer_index: torch.Tensor
@@ -951,10 +963,11 @@ class FoCusLightningDataModuleV3(LightningDataModule):
         self,
         batch: List[BartFoCusDatasetSampleDictV3],
     ) -> FoCusLightningDataModuleV3DictV1:
-        max_len = max([len(item["input_ids"]) for item in batch])
+        max_input_ids_len = max([len(item["input_ids"]) for item in batch])
+        max_query_len = max([len(item["query_input_ids"]) for item in batch])
 
-        pad_input_ids = []
-        pad_attention_mask = []
+        batch_input_ids = []
+        batch_attention_mask = []
         batch_persona_grounding = []
         batch_knowledge_candidates_answer_index = []
         batch_knowledge_candidates_sep_index = []
@@ -963,6 +976,8 @@ class FoCusLightningDataModuleV3(LightningDataModule):
         batch_query_eos_index = []
         batch_bos_index = []
         batch_eos_index = []
+        batch_query_input_ids = []
+        batch_query_input_attention_mask = []
 
         for item in batch:
             input_ids = item["input_ids"]
@@ -975,18 +990,31 @@ class FoCusLightningDataModuleV3(LightningDataModule):
             query_eos_index = item["query_eos_index"]
             bos_index = item["bos_index"]
             eos_index = item["eos_index"]
+            query_input_ids = item["query_input_ids"]
+            query_input_attention_mask = item["query_input_attention_mask"]
 
             pad_tokens = cast(
                 List[int],
-                [self.tokenizer.pad_token_id] * (max_len - len(input_ids)),
+                [self.tokenizer.pad_token_id] * (max_input_ids_len - len(input_ids)),
             )
-            pad_attention = [0] * (max_len - len(attention_mask))
+            pad_attention = [0] * (max_input_ids_len - len(attention_mask))
+
+            pad_query_input_ids = cast(
+                List[int],
+                [self.tokenizer.pad_token_id] * (max_query_len - len(query_input_ids)),
+            )
+            pad_query_input_attention_mask = [0] * (
+                max_query_len - len(query_input_attention_mask)
+            )
 
             input_ids.extend(pad_tokens)
             attention_mask.extend(pad_attention)
 
-            pad_input_ids.append(input_ids)
-            pad_attention_mask.append(attention_mask)
+            query_input_ids.extend(pad_query_input_ids)
+            query_input_attention_mask.extend(pad_query_input_attention_mask)
+
+            batch_input_ids.append(input_ids)
+            batch_attention_mask.append(attention_mask)
             batch_persona_grounding.append(persona_grounding)
             batch_knowledge_candidates_answer_index.append([knowledge_answer_index])
             batch_persona_sep_index.append([persona_sep_index])
@@ -997,14 +1025,18 @@ class FoCusLightningDataModuleV3(LightningDataModule):
             batch_query_eos_index.append([query_eos_index])
             batch_bos_index.append([bos_index])
             batch_eos_index.append([eos_index])
+            batch_query_input_ids.append(query_input_ids)
+            batch_query_input_attention_mask.append(query_input_attention_mask)
 
         return FoCusLightningDataModuleV3DictV1(
-            input_ids=torch.tensor(pad_input_ids),
-            input_ids_labels=torch.tensor(pad_input_ids),
-            attention_mask=torch.tensor(pad_attention_mask),
+            input_ids=torch.tensor(batch_input_ids),
+            input_ids_labels=torch.tensor(batch_input_ids),
+            query_input_ids=torch.tensor(batch_query_input_ids),
+            attention_mask=torch.tensor(batch_attention_mask),
+            query_input_attention_mask=torch.tensor(batch_query_input_attention_mask),
             persona_grounding=torch.tensor(batch_persona_grounding),
             knowledge_answer_index=torch.tensor(
-                batch_knowledge_candidates_answer_index
+                batch_knowledge_candidates_answer_index,
             ),
             persona_sep_index=torch.tensor(batch_persona_sep_index),
             knowledge_candidates_sep_index=torch.tensor(

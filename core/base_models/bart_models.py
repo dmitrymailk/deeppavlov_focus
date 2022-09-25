@@ -871,8 +871,8 @@ class BartLMV6(BartPretrainedModel):
             device=self.device,
             dtype=torch.float,
         )
-        persona_loss = None
-        knowledge_loss = None
+        persona_loss = 0
+        knowledge_loss = 0
         lm_loss = None
         persona_logits = None
         knowledge_logits = None
@@ -890,6 +890,83 @@ class BartLMV6(BartPretrainedModel):
                 shift_labels.view(-1),
             )
             loss += lm_loss
+
+        # extract persona vectors
+        # <query></query>[EOS][SEP_persona][BOS]
+        if persona_sep_index is not None:
+            assert query_eos_index is not None
+            assert query_bos_index is not None
+            assert bos_index is not None
+            assert eos_index is not None
+
+            persona_feature_vectors = []
+            for (
+                persona_sep_index_i,
+                batch_item,
+                query_eos_i,
+                query_bos_i,
+                bos_i,
+                eos_i,
+            ) in zip(
+                persona_sep_index,
+                last_outputs,
+                query_eos_index,
+                query_bos_index,
+                bos_index,
+                eos_index,
+            ):
+                persona_sep_vector = batch_item[persona_sep_index_i]
+                query_eos_vector = batch_item[query_eos_i]
+                query_bos_vector = batch_item[query_bos_i]
+                bos_vector = batch_item[bos_i]
+                eos_vector = batch_item[eos_i]
+
+                persona_sep_vector += (
+                    query_eos_vector + query_bos_vector + bos_vector + eos_vector
+                )
+                persona_feature_vectors.append(persona_sep_vector)
+
+            persona_vector = torch.vstack(persona_feature_vectors)
+            persona_logits = self.persona_head(persona_vector)
+
+        if knowledge_candidates_sep_index is not None:
+            # extract knowledge vectors
+            # <query></query>[EOS][SEP_knowledge_candidates][BOS]
+            assert query_eos_index is not None
+            assert query_bos_index is not None
+            assert bos_index is not None
+            assert eos_index is not None
+            knowledge_candidates_feature_vectors = []
+            for (
+                knowledge_sep_index_i,
+                batch_item,
+                query_bos_i,
+                query_eos_i,
+                bos_i,
+                eos_i,
+            ) in zip(
+                knowledge_candidates_sep_index,
+                last_outputs,
+                query_bos_index,
+                query_eos_index,
+                bos_index,
+                eos_index,
+            ):
+                knowledge_sep_vector = batch_item[knowledge_sep_index_i]
+                query_eos_vector = batch_item[query_eos_i]
+                query_bos_vector = batch_item[query_bos_i]
+                bos_vector = batch_item[bos_i]
+                eos_vector = batch_item[eos_i]
+
+                knowledge_sep_vector += (
+                    query_eos_vector + query_bos_vector + bos_vector + eos_vector
+                )
+                knowledge_candidates_feature_vectors.append(
+                    knowledge_sep_vector,
+                )
+
+            knowledge_vector = torch.vstack(knowledge_candidates_feature_vectors)
+            knowledge_logits = self.knowledge_candidates_head(knowledge_vector)
 
         return BartLMV2Outputs(
             # loss

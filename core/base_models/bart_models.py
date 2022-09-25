@@ -789,3 +789,117 @@ class BartLMV5(BartPretrainedModel):
             knowledge_logits=knowledge_logits,
             last_hidden_state=bart_outputs[0],
         )
+
+
+class BartLMV6(BartPretrainedModel):
+    def __init__(
+        self,
+        config: BartConfig,
+        hyperparameters: BartHyperparametersV3,
+        tokenizer: BartFoCusTokenizerV2,
+    ) -> None:
+        """
+        input_ids:
+            [BOS][persona][SEP][knowledge_candidates][SEP]<query>[dialog][-2]</query><response>[dialog][-1]</response>[EOS]
+        Модель у которой следующий лосс
+        loss = loss_LM + loss_persona + loss_knowledge_candidates
+        где
+            loss_LM - лосс языковой модели
+            loss_persona - лосс при классификации persona
+            loss_knowledge_candidates - лосс при классификации knowledge candidates
+
+        классификацию persona на основе:
+            - <query>
+            - </query>
+            - [EOS]
+            - [SEP] после [persona]
+            - [BOS]
+        классификацию knowledge_candidates на основе:
+            - <query>
+            - </query>
+            - [EOS]
+            - [SEP] после [knowledge_candidates]
+            - [BOS]
+        отличие отBartLMV5 использую только lm_loss
+        """
+        super().__init__(config=config)
+        self.tokenizer = tokenizer
+        self.hyperparameters = hyperparameters
+
+        self.model = BartModel(config=config)
+        self.lm_head = nn.Linear(
+            config.d_model,
+            len(tokenizer),
+            bias=False,
+        )
+        self.persona_head = nn.Linear(
+            config.d_model,
+            hyperparameters.persona_labels_amount,
+            bias=False,
+        )
+        self.knowledge_candidates_head = nn.Linear(
+            config.d_model,
+            hyperparameters.knowledge_labels_amount,
+            bias=False,
+        )
+
+    def forward(
+        self,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor,
+        persona_sep_index: Optional[torch.Tensor] = None,
+        query_eos_index: Optional[torch.Tensor] = None,
+        query_bos_index: Optional[torch.Tensor] = None,
+        bos_index: Optional[torch.Tensor] = None,
+        eos_index: Optional[torch.Tensor] = None,
+        input_ids_labels: Optional[torch.Tensor] = None,
+        persona_grounding: Optional[torch.Tensor] = None,
+        knowledge_answer_index: Optional[torch.Tensor] = None,
+        knowledge_candidates_sep_index: Optional[torch.Tensor] = None,
+        **kwargs,
+    ) -> BartLMV2Outputs:
+
+        bart_outputs = self.model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+        )
+
+        last_outputs: torch.Tensor = bart_outputs[0]
+        lm_logits: torch.Tensor = self.lm_head(last_outputs)
+        loss: torch.Tensor = torch.tensor(
+            0,
+            device=self.device,
+            dtype=torch.float,
+        )
+        persona_loss = None
+        knowledge_loss = None
+        lm_loss = None
+        persona_logits = None
+        knowledge_logits = None
+
+        # compute lm loss
+        if input_ids_labels is not None:
+            # copy from https://github.com/pkchat-focus/FoCus/blob/main/classification_modules.py#L462 # noqa: E501
+            loss_fct = nn.CrossEntropyLoss(
+                ignore_index=self.tokenizer.pad_token_id,  # type: ignore
+            )
+            shift_logits = lm_logits[..., :-1, :].contiguous()
+            shift_labels = input_ids_labels[..., 1:].contiguous()
+            lm_loss = loss_fct(
+                shift_logits.view(-1, shift_logits.size(-1)),
+                shift_labels.view(-1),
+            )
+            loss += lm_loss
+
+        return BartLMV2Outputs(
+            # loss
+            loss=loss,
+            lm_loss=lm_loss,
+            persona_loss=persona_loss,
+            knowledge_loss=knowledge_loss,
+            # logits
+            lm_logits=lm_logits,
+            persona_logits=persona_logits,
+            knowledge_logits=knowledge_logits,
+            last_hidden_state=bart_outputs[0],
+        )

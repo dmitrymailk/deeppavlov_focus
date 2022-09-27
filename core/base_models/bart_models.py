@@ -639,7 +639,7 @@ class BartLMV5(BartPretrainedModel):
     def forward(
         self,
         input_ids: torch.Tensor,
-        attention_mask: torch.Tensor,
+        attention_mask: Optional[torch.Tensor] = None,
         persona_sep_index: Optional[torch.Tensor] = None,
         query_eos_index: Optional[torch.Tensor] = None,
         query_bos_index: Optional[torch.Tensor] = None,
@@ -789,6 +789,12 @@ class BartLMV5(BartPretrainedModel):
             knowledge_logits=knowledge_logits,
             last_hidden_state=bart_outputs[0],
         )
+
+    def get_encoder(self):
+        return self.model.get_encoder()
+
+    def get_decoder(self):
+        return self.model.get_decoder()
 
 
 class BartLMV6(BartPretrainedModel):
@@ -980,3 +986,9 @@ class BartLMV6(BartPretrainedModel):
             knowledge_logits=knowledge_logits,
             last_hidden_state=bart_outputs[0],
         )
+
+    def get_encoder(self):
+        return self.model.get_encoder()
+
+    def get_decoder(self):
+        return self.model.get_decoder()

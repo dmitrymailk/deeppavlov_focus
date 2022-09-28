@@ -2,10 +2,16 @@ import argparse
 from dataclasses import dataclass
 from typing import List
 
+from datasets import load_metric  # type: ignore
+
 import numpy as np
+
+from rouge_score import rouge_scorer
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+
+from torchmetrics import CHRFScore  # type: ignore
 
 
 class TfIdf:
@@ -56,7 +62,7 @@ class TfIdf:
         query: List[List[int]] = None,
         top_k: int = 1,
     ) -> List[List[int]]:
-        query = self.__encode_sentences(query)
+        query = self.__encode_sentences(query)  # type: ignore
         query = self.vectorizer.transform(query)
 
         similarity = cosine_similarity(self.X, query)
@@ -94,6 +100,38 @@ class FoCusTfIdf(TfIdf):
         self.cached_similar[query_str] = similar_samples
 
         return similar_samples
+
+
+class TextEvaluator:
+    def __init__(self):
+        self.rouge = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=True)
+        self.bleu = load_metric("sacrebleu")
+        self.chrf = CHRFScore()
+
+    def evaluate(self, generated_texts: List[str], original_texts: List[str]):
+        blue_score = self.bleu.compute(
+            predictions=generated_texts,  # type: ignore
+            references=[[item] for item in original_texts],
+        )["score"]
+
+        # compute rouge score
+        rougeL_score = 0
+        for gen_text, orig_text in zip(generated_texts, original_texts):
+            scores = self.rouge.score(orig_text, gen_text)
+            rougeL_score += scores["rougeL"].fmeasure
+
+        rougeL_score /= len(generated_texts)
+
+        # compute chrf score
+        chrf_score = self.chrf(
+            generated_texts, [[item] for item in original_texts]
+        ).item()
+
+        return {
+            "blue_score": blue_score,
+            "rougeL_score": rougeL_score,
+            "chrf_score": chrf_score,
+        }
 
 
 @dataclass

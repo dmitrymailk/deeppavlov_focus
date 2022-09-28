@@ -24,19 +24,18 @@ from transformers import BartConfig  # type: ignore
 
 def experiment_v4() -> None:
     """
-    [BOS][persona][SEP][knowledge_candidates][SEP]<query>[dialog][-2]</query><response>[dialog][-1]</response>[EOS]
-    [persona] - склееенные предложения персоны, 5шт
-    query - это последний вопрос от пользователя
-    response - это ответ от бота за запрос пользователя
-    [knowledge_candidates] - это топ 2 похожих предложений из
-        knowledge_candidates на query
+    seq2seq model with BartForConditionalGeneration
+    input_ids:
+        [BOS][persona][SEP][knowledge_candidates][SEP]<query>[dialog][-2]</query>[EOS]
+    labels:
+        [BOS]<response>[dialog][-1]</response>[EOS]
 
-    классификацию knowledge_candidates на основе:
-        - <query>
-        - </query>
-        - [EOS]
-        - [SEP] после [knowledge_candidates]
-        - [BOS]
+    Модель у которой следующий лосс
+    loss = loss_LM + loss_persona + loss_knowledge_candidates
+    где
+        loss_LM - лосс языковой модели
+        loss_persona - лосс при классификации persona
+        loss_knowledge_candidates - лосс при классификации knowledge candidates
 
     классификацию persona на основе:
         - <query>
@@ -44,9 +43,12 @@ def experiment_v4() -> None:
         - [EOS]
         - [SEP] после [persona]
         - [BOS]
-
-    Bart с loss = lm_loss + knowledge_candidates_loss + persona_loss
-    отличие от v2 в том что я взял другие фичи для классификации
+    классификацию knowledge_candidates на основе:
+        - <query>
+        - </query>
+        - [EOS]
+        - [SEP] после [knowledge_candidates]
+        - [BOS]
     """
     parser = ExperimentArgumentParserV1()
     args: TrainArgumentsV1 = parser.args

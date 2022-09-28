@@ -14,230 +14,13 @@ from transformers.models.bart.configuration_bart import BartConfig
 from transformers.models.bart.modeling_bart import (
     BartForConditionalGeneration,
     BartModel,
-    BartPretrainedModel,
+    # BartPretrainedModel,
 )
-from transformers.models.bart.modeling_bart import shift_tokens_right
-from transformers.utils import ModelOutput  # type: ignore
+
+# from transformers.utils import ModelOutput  # type: ignore
 
 
-class BartLMV2Outputs(ModelOutput):
-    loss: Optional[torch.Tensor]
-    lm_loss: Optional[torch.Tensor]
-    persona_loss: Optional[torch.Tensor]
-    knowledge_loss: Optional[torch.Tensor]
-
-    lm_logits: torch.Tensor
-    persona_logits: torch.Tensor
-    knowledge_logits: torch.Tensor
-    last_hidden_state: torch.Tensor
-
-
-class BartLMV5(BartPretrainedModel):
-    def __init__(
-        self,
-        config: BartConfig,
-        hyperparameters: BartHyperparametersV3,
-        tokenizer: BartFoCusTokenizerV2,
-    ) -> None:
-        """
-        input_ids:
-            [BOS][persona][SEP][knowledge_candidates][SEP]<query>[dialog][-2]</query><response>[dialog][-1]</response>[EOS]
-        Модель у которой следующий лосс
-        loss = loss_LM + loss_persona + loss_knowledge_candidates
-        где
-            loss_LM - лосс языковой модели
-            loss_persona - лосс при классификации persona
-            loss_knowledge_candidates - лосс при классификации knowledge candidates
-
-        классификацию persona на основе:
-            - <query>
-            - </query>
-            - [EOS]
-            - [SEP] после [persona]
-            - [BOS]
-        классификацию knowledge_candidates на основе:
-            - <query>
-            - </query>
-            - [EOS]
-            - [SEP] после [knowledge_candidates]
-            - [BOS]
-        отличие отBartLMV4 в том что я буду складывать, а не конкатенировать контекстные
-        вектора
-        """
-        super().__init__(config=config)
-        self.tokenizer = tokenizer
-        self.hyperparameters = hyperparameters
-
-        self.model = BartModel(config=config)
-        self.lm_head = nn.Linear(
-            config.d_model,
-            len(tokenizer),
-            bias=False,
-        )
-        self.persona_head = nn.Linear(
-            config.d_model,
-            hyperparameters.persona_labels_amount,
-            bias=False,
-        )
-        self.knowledge_candidates_head = nn.Linear(
-            config.d_model,
-            hyperparameters.knowledge_labels_amount,
-            bias=False,
-        )
-
-    def forward(
-        self,
-        input_ids: torch.Tensor,
-        attention_mask: Optional[torch.Tensor] = None,
-        persona_sep_index: Optional[torch.Tensor] = None,
-        query_eos_index: Optional[torch.Tensor] = None,
-        query_bos_index: Optional[torch.Tensor] = None,
-        bos_index: Optional[torch.Tensor] = None,
-        eos_index: Optional[torch.Tensor] = None,
-        input_ids_labels: Optional[torch.Tensor] = None,
-        persona_grounding: Optional[torch.Tensor] = None,
-        knowledge_answer_index: Optional[torch.Tensor] = None,
-        knowledge_candidates_sep_index: Optional[torch.Tensor] = None,
-        **kwargs,
-    ) -> BartLMV2Outputs:
-
-        bart_outputs = self.model(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-        )
-
-        last_outputs: torch.Tensor = bart_outputs[0]
-        lm_logits: torch.Tensor = self.lm_head(last_outputs)
-        loss: torch.Tensor = torch.tensor(
-            0,
-            device=self.device,
-            dtype=torch.float,
-        )
-        persona_loss = None
-        knowledge_loss = None
-        lm_loss = None
-        persona_logits = None
-        knowledge_logits = None
-
-        # compute lm loss
-        if input_ids_labels is not None:
-            # copy from https://github.com/pkchat-focus/FoCus/blob/main/classification_modules.py#L462 # noqa: E501
-            loss_fct = nn.CrossEntropyLoss(
-                ignore_index=self.tokenizer.pad_token_id,  # type: ignore
-            )
-            shift_logits = lm_logits[..., :-1, :].contiguous()
-            shift_labels = input_ids_labels[..., 1:].contiguous()
-            lm_loss = loss_fct(
-                shift_logits.view(-1, shift_logits.size(-1)),
-                shift_labels.view(-1),
-            )
-            loss += lm_loss
-
-        # extract persona vectors
-        # <query></query>[EOS][SEP_persona][BOS]
-        if persona_sep_index is not None:
-            assert query_eos_index is not None
-            assert query_bos_index is not None
-            assert bos_index is not None
-            assert eos_index is not None
-
-            persona_feature_vectors = []
-            for (
-                persona_sep_index_i,
-                batch_item,
-                query_eos_i,
-                query_bos_i,
-                bos_i,
-                eos_i,
-            ) in zip(
-                persona_sep_index,
-                last_outputs,
-                query_eos_index,
-                query_bos_index,
-                bos_index,
-                eos_index,
-            ):
-                persona_sep_vector = batch_item[persona_sep_index_i]
-                query_eos_vector = batch_item[query_eos_i]
-                query_bos_vector = batch_item[query_bos_i]
-                bos_vector = batch_item[bos_i]
-                eos_vector = batch_item[eos_i]
-
-                persona_sep_vector += (
-                    query_eos_vector + query_bos_vector + bos_vector + eos_vector
-                )
-                persona_feature_vectors.append(persona_sep_vector)
-
-            persona_vector = torch.vstack(persona_feature_vectors)
-            persona_logits = self.persona_head(persona_vector)
-
-            # compute persona loss
-            if persona_grounding is not None:
-                loss_fct = nn.BCEWithLogitsLoss()
-                persona_grounding = persona_grounding.type_as(persona_logits)
-                persona_loss = loss_fct(persona_logits, persona_grounding)
-                loss += persona_loss
-
-        if knowledge_candidates_sep_index is not None:
-            # extract knowledge vectors
-            # <query></query>[EOS][SEP_knowledge_candidates][BOS]
-            assert query_eos_index is not None
-            assert query_bos_index is not None
-            assert bos_index is not None
-            assert eos_index is not None
-            knowledge_candidates_feature_vectors = []
-            for (
-                knowledge_sep_index_i,
-                batch_item,
-                query_bos_i,
-                query_eos_i,
-                bos_i,
-                eos_i,
-            ) in zip(
-                knowledge_candidates_sep_index,
-                last_outputs,
-                query_bos_index,
-                query_eos_index,
-                bos_index,
-                eos_index,
-            ):
-                knowledge_sep_vector = batch_item[knowledge_sep_index_i]
-                query_eos_vector = batch_item[query_eos_i]
-                query_bos_vector = batch_item[query_bos_i]
-                bos_vector = batch_item[bos_i]
-                eos_vector = batch_item[eos_i]
-
-                knowledge_sep_vector += (
-                    query_eos_vector + query_bos_vector + bos_vector + eos_vector
-                )
-                knowledge_candidates_feature_vectors.append(
-                    knowledge_sep_vector,
-                )
-
-            knowledge_vector = torch.vstack(knowledge_candidates_feature_vectors)
-            knowledge_logits = self.knowledge_candidates_head(knowledge_vector)
-
-            # compute knowledge loss
-            if knowledge_answer_index is not None:
-                loss_fct = nn.CrossEntropyLoss()
-                knowledge_loss = loss_fct(
-                    knowledge_logits,
-                    knowledge_answer_index.view(-1),
-                )
-                loss += knowledge_loss
-
-        return BartLMV2Outputs(
-            # loss
-            loss=loss,
-            lm_loss=lm_loss,
-            persona_loss=persona_loss,
-            knowledge_loss=knowledge_loss,
-            # logits
-            lm_logits=lm_logits,
-            persona_logits=persona_logits,
-            knowledge_logits=knowledge_logits,
-            last_hidden_state=bart_outputs[0],
-        )
+# from transformers.models.bart.modeling_bart import shift_tokens_right
 
 
 class BartLMV7(BartForConditionalGeneration):
@@ -299,12 +82,37 @@ class BartLMV7(BartForConditionalGeneration):
         query_bos_index: Optional[torch.Tensor] = None,
         bos_index: Optional[torch.Tensor] = None,
         eos_index: Optional[torch.Tensor] = None,
-        input_ids_labels: Optional[torch.Tensor] = None,
         persona_grounding: Optional[torch.Tensor] = None,
         knowledge_answer_index: Optional[torch.Tensor] = None,
         knowledge_candidates_sep_index: Optional[torch.Tensor] = None,
         **kwargs,
     ) -> BartOutputV1:
+        """
+        input_ids:
+            [BOS][persona][SEP][knowledge_candidates][SEP]<query>[dialog][-2]</query>[EOS]
+        labels:
+            [BOS]<response>[dialog][-1]</response>[EOS]
+
+        Модель у которой следующий лосс
+        loss = loss_LM + loss_persona + loss_knowledge_candidates
+        где
+            loss_LM - лосс языковой модели
+            loss_persona - лосс при классификации persona
+            loss_knowledge_candidates - лосс при классификации knowledge candidates
+
+        классификацию persona на основе:
+            - <query>
+            - </query>
+            - [EOS]
+            - [SEP] после [persona]
+            - [BOS]
+        классификацию knowledge_candidates на основе:
+            - <query>
+            - </query>
+            - [EOS]
+            - [SEP] после [knowledge_candidates]
+            - [BOS]
+        """
         loss: torch.Tensor = torch.tensor(
             0,
             device=self.device,
@@ -320,11 +128,7 @@ class BartLMV7(BartForConditionalGeneration):
 
             use_cache = False
             if decoder_input_ids is None and decoder_inputs_embeds is None:
-                decoder_input_ids = shift_tokens_right(
-                    labels,  # type: ignore
-                    self.config.pad_token_id,  # type: ignore
-                    self.config.decoder_start_token_id,  # type: ignore
-                )
+                decoder_input_ids = labels.clone()  # type: ignore
 
         outputs = self.model(
             input_ids,
@@ -342,9 +146,9 @@ class BartLMV7(BartForConditionalGeneration):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
         )
-        last_outputs = outputs[0]
-        encoder_features = outputs[1]
-        lm_logits = self.lm_head(last_outputs) + self.final_logits_bias
+        last_decoder_states = outputs[0]
+        encoder_features = outputs.encoder_last_hidden_state
+        lm_logits = self.lm_head(last_decoder_states) + self.final_logits_bias
 
         if labels is not None:
             loss_fct = nn.CrossEntropyLoss(
@@ -394,6 +198,13 @@ class BartLMV7(BartForConditionalGeneration):
             persona_vector = torch.vstack(persona_feature_vectors)
             persona_logits = self.persona_head(persona_vector)
 
+            # compute persona loss
+            if persona_grounding is not None:
+                loss_fct = nn.BCEWithLogitsLoss()
+                persona_grounding = persona_grounding.type_as(persona_logits)
+                persona_loss = loss_fct(persona_logits, persona_grounding)
+                loss += persona_loss
+
         if knowledge_candidates_sep_index is not None:
             # extract knowledge vectors
             # <query></query>[EOS][SEP_knowledge_candidates][BOS]
@@ -433,6 +244,15 @@ class BartLMV7(BartForConditionalGeneration):
             knowledge_vector = torch.vstack(knowledge_candidates_feature_vectors)
             knowledge_logits = self.knowledge_candidates_head(knowledge_vector)
 
+            # compute knowledge loss
+            if knowledge_answer_index is not None:
+                loss_fct = nn.CrossEntropyLoss()
+                knowledge_loss = loss_fct(
+                    knowledge_logits,
+                    knowledge_answer_index.view(-1),
+                )
+                loss += knowledge_loss
+
         return BartOutputV1(
             # default fields
             loss=loss,
@@ -450,5 +270,5 @@ class BartLMV7(BartForConditionalGeneration):
             knowledge_loss=knowledge_loss,
             persona_logits=persona_logits,
             knowledge_logits=knowledge_logits,
-            last_hidden_state=last_outputs,
+            last_hidden_state=last_decoder_states,
         )

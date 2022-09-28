@@ -3,55 +3,6 @@ from typing import Dict
 
 
 @dataclass
-class BartHyperparametersV1:
-    dialog_history_length: int = 1
-    context_length: int = 1
-    knowledge_length: int = 1
-    max_persona_tokens: int = 200
-    max_dialog_history_tokens: int = 200
-    max_knowledge_tokens: int = 200
-    max_bot_response_tokens: int = 150
-    dialog_bos_token: str = "<dialog>"
-    dialog_eos_token: str = "</dialog>"
-    seed: int = 2022
-    train_batch_size: int = 4
-    valid_batch_size: int = 4
-    warmup_steps: int = 100
-    learning_rate: float = 6.25e-5
-    adam_epsilon: float = 1e-8
-    weight_decay: float = 0.01
-    gradient_accumulation_steps: int = 1
-    train_epochs: int = 1
-    model_name: str = "facebook/bart-base"
-
-
-@dataclass
-class BartHyperparametersV2:
-    dialog_history_length: int = 1
-    context_length: int = 1
-    knowledge_length: int = 1
-    max_persona_tokens: int = 200
-    max_dialog_history_tokens: int = 200
-    max_knowledge_tokens: int = 200
-    max_bot_response_tokens: int = 150
-    dialog_bos_token: str = "<dialog>"
-    dialog_eos_token: str = "</dialog>"
-    seed: int = 2022
-    train_batch_size: int = 4
-    valid_batch_size: int = 4
-    warmup_steps: int = 100
-    learning_rate: float = 6.25e-5
-    adam_epsilon: float = 1e-8
-    weight_decay: float = 0.01
-    gradient_accumulation_steps: int = 1
-    train_epochs: int = 1
-    model_name: str = "facebook/bart-base"
-    persona_labels_amount: int = 5
-    knowledge_labels_amount: int = 10
-    lighting_hyperparameters: Dict | None = None
-
-
-@dataclass
 class BartHyperparametersV3:
     dialog_history_length: int = 1
     context_length: int = 1

@@ -1,6 +1,4 @@
 from core.hyperparameters.bart_hyperparameters import (
-    BartHyperparametersV1,
-    BartHyperparametersV2,
     BartHyperparametersV3,
 )
 
@@ -10,9 +8,7 @@ from pytorch_lightning.loggers import WandbLogger  # type: ignore
 class WandbLoggerV1:
     def __init__(
         self,
-        hyperparameters: BartHyperparametersV1
-        | BartHyperparametersV2  # noqa: W503
-        | BartHyperparametersV3,  # noqa: W503
+        hyperparameters: BartHyperparametersV3,  # noqa: W503
         is_debug: bool = False,
     ) -> None:
         self.is_debug = is_debug

@@ -1,4 +1,5 @@
 import argparse
+from dataclasses import dataclass
 from typing import List
 
 import numpy as np
@@ -95,9 +96,9 @@ class FoCusTfIdf(TfIdf):
         return similar_samples
 
 
+@dataclass
 class TrainArgumentsV1:
-    def __init__(self, is_debug: bool) -> None:
-        self.is_debug = is_debug
+    debug_status: int
 
 
 class ExperimentArgumentParserV1:
@@ -107,10 +108,11 @@ class ExperimentArgumentParserV1:
         parser = argparse.ArgumentParser(description="training arguments")
         params = [
             (
-                "--is_debug",
+                "--debug_status",
                 {
-                    "dest": "is_debug",
-                    "action": "store_true",
+                    "dest": "debug_status",
+                    "type": int,
+                    "default": 0,
                 },
             ),
         ]

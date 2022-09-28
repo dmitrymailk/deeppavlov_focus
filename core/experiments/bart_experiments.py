@@ -55,7 +55,7 @@ def experiment_v4() -> None:
 
     lighting_hyperparameters = LightingHyperparametersV1(
         precision=16,
-        max_epochs=1,
+        max_epochs=2,
     ).__dict__
 
     hyperparameters = BartHyperparametersV3(

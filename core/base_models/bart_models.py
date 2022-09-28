@@ -20,7 +20,7 @@ from transformers.models.bart.modeling_bart import (
 # from transformers.utils import ModelOutput  # type: ignore
 
 
-# from transformers.models.bart.modeling_bart import shift_tokens_right
+from transformers.models.bart.modeling_bart import shift_tokens_right
 
 
 class BartLMV7(BartForConditionalGeneration):
@@ -128,7 +128,11 @@ class BartLMV7(BartForConditionalGeneration):
 
             use_cache = False
             if decoder_input_ids is None and decoder_inputs_embeds is None:
-                decoder_input_ids = labels.clone()  # type: ignore
+                decoder_input_ids = shift_tokens_right(
+                    labels,  # type: ignore
+                    self.config.pad_token_id,  # type: ignore
+                    self.config.decoder_start_token_id,  # type: ignore
+                )
 
         outputs = self.model(
             input_ids,

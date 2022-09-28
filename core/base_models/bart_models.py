@@ -1098,13 +1098,13 @@ class BartLMV7(BartForConditionalGeneration):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
         )
-        last_outputs = outputs[0]
+        last_outputs = outputs[0] + self.final_logits_bias
         lm_logits = self.lm_head(last_outputs)
 
         if labels is not None:
             loss_fct = nn.CrossEntropyLoss()
             lm_loss = loss_fct(
-                lm_logits.view(-1, self.config.vocab_size),
+                lm_logits.view(-1, len(self.tokenizer)),
                 labels.view(-1),
             )
             loss += lm_loss

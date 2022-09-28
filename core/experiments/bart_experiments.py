@@ -267,7 +267,9 @@ def experiment_v4() -> None:
         is_debug=is_debug,
     )
     base_model = BartLMV7(
-        config=BartConfig.from_pretrained(hyperparameters.model_name),  # type: ignore
+        config=BartConfig.from_pretrained(
+            hyperparameters.model_name,
+        ),  # type: ignore
         hyperparameters=hyperparameters,
         tokenizer=tokenizer,  # type: ignore
     )

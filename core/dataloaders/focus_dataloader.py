@@ -701,7 +701,6 @@ class BartFoCusDatasetSampleV3:
         self.bos_token_id = self.tokenizer.bos_token_id
         self.pad_token_id = self.tokenizer.pad_token_id
         self.unk_token_id = self.tokenizer.unk_token_id
-        self.sep_token_id = self.tokenizer.sep_token_id
         self.cls_token_id = self.tokenizer.cls_token_id
         self.eos_token_id = self.tokenizer.eos_token_id
 
@@ -709,6 +708,7 @@ class BartFoCusDatasetSampleV3:
         self.response_eos_id = self.__get_token_id(h_params.response_eos_token)
         self.query_bos_id = self.__get_token_id(h_params.query_bos_token)
         self.query_eos_id = self.__get_token_id(h_params.query_eos_token)
+        self.sep_token_id = self.__get_token_id(h_params.sep_token)
 
     def __get_token_id(self, token: str) -> int:
         token_index = self.tokenizer.get_vocab().get(token, self.unk_token_id)

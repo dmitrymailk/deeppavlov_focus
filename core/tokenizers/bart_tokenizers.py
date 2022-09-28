@@ -64,6 +64,7 @@ class BartFoCusTokenizerV2(BartTokenizer):
                 hyperparameters.response_eos_token,
                 hyperparameters.query_bos_token,
                 hyperparameters.query_eos_token,
+                hyperparameters.sep_token,
             ]
 
             tokenizer.add_special_tokens(

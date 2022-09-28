@@ -70,6 +70,7 @@ class BartHyperparametersV3:
     response_eos_token: str = "</response>"
     query_bos_token: str = "<query>"
     query_eos_token: str = "</query>"
+    sep_token: str = "<sep>"
     seed: int = 2022
     train_batch_size: int = 4
     valid_batch_size: int = 4

@@ -1102,7 +1102,9 @@ class BartLMV7(BartForConditionalGeneration):
         lm_logits = self.lm_head(last_outputs) + self.final_logits_bias
 
         if labels is not None:
-            loss_fct = nn.CrossEntropyLoss()
+            loss_fct = nn.CrossEntropyLoss(
+                ignore_index=self.tokenizer.pad_token_id,  # type: ignore
+            )
             lm_loss = loss_fct(
                 lm_logits.view(-1, len(self.tokenizer)),
                 labels.view(-1),

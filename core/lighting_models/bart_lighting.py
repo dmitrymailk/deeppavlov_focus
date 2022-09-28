@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Union
 
 from core.base_models.bart_models import (
     BartLMV1,
@@ -8,7 +8,9 @@ from core.base_models.bart_models import (
     BartLMV4,
     BartLMV5,
     BartLMV6,
+    BartLMV7,
 )
+from core.base_models.model_outputs.bart_outputs import BartOutputV1
 from core.dataloaders.focus_dataloader import (
     FoCusLightningDataModuleV2DictV1,
 )
@@ -145,12 +147,27 @@ class BARTLightningModelV1(LightningModule):
         return [optimizer], [scheduler]
 
 
+BaseModels = Union[
+    BartLMV2,
+    BartLMV3,
+    BartLMV4,
+    BartLMV5,
+    BartLMV6,
+    BartLMV7,
+]
+
+ModelOutputs = Union[
+    BartOutputV1,
+    BartLMV2Outputs,
+]
+
+
 class BARTLightningModelV2(LightningModule):
     def __init__(
         self,
         hyperparameters: BartHyperparametersV2 | BartHyperparametersV3,
         tokenizer: BartFoCusTokenizerV1 | BartFoCusTokenizerV2,
-        base_model: BartLMV2 | BartLMV3 | BartLMV4 | BartLMV5 | BartLMV6,
+        base_model: BaseModels,
         is_training: bool = False,
     ) -> None:
         super().__init__()
@@ -167,7 +184,7 @@ class BARTLightningModelV2(LightningModule):
     def forward(
         self,
         **kwargs,
-    ) -> BartLMV2Outputs:
+    ) -> ModelOutputs:
         return self.model(**kwargs)
 
     def training_step(
@@ -176,7 +193,7 @@ class BARTLightningModelV2(LightningModule):
         batch_idx: int,
     ):
 
-        outputs: BartLMV2Outputs = self.model.forward(
+        outputs: ModelOutputs = self.model.forward(
             **batch,
         )
 
@@ -233,7 +250,7 @@ class BARTLightningModelV2(LightningModule):
 
     def _compute_persona_accuracy(
         self,
-        outputs: BartLMV2Outputs,
+        outputs: ModelOutputs,
         batch: FoCusLightningDataModuleV2DictV1,
     ) -> float:
         logits = outputs.persona_logits
@@ -244,7 +261,7 @@ class BARTLightningModelV2(LightningModule):
 
     def _compute_knowledge_accuracy(
         self,
-        outputs: BartLMV2Outputs,
+        outputs: ModelOutputs,
         batch: FoCusLightningDataModuleV2DictV1,
     ) -> float:
         logits = outputs.knowledge_logits

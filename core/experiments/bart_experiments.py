@@ -3,6 +3,7 @@ from core.base_models.bart_models import (  # noqa: F401
     BartLMV4,
     BartLMV5,
     BartLMV6,
+    BartLMV7,
 )
 from core.dataloaders.focus_dataloader import (
     FoCusLightningDataModuleV1,
@@ -265,7 +266,7 @@ def experiment_v4() -> None:
         tokenizer=tokenizer,  # type: ignore
         is_debug=is_debug,
     )
-    base_model = BartLMV6(
+    base_model = BartLMV7(
         config=BartConfig.from_pretrained(hyperparameters.model_name),  # type: ignore
         hyperparameters=hyperparameters,
         tokenizer=tokenizer,  # type: ignore

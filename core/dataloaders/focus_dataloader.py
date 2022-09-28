@@ -889,7 +889,7 @@ class PytorchFoCusDatasetV3(Dataset):
 
 class FoCusLightningDataModuleV3DictV1(TypedDict):
     input_ids: torch.Tensor
-    input_ids_labels: torch.Tensor
+    labels: torch.Tensor
     query_input_ids: torch.Tensor
     query_input_attention_mask: torch.Tensor
     attention_mask: torch.Tensor
@@ -1030,7 +1030,7 @@ class FoCusLightningDataModuleV3(LightningDataModule):
 
         return FoCusLightningDataModuleV3DictV1(
             input_ids=torch.tensor(batch_input_ids),
-            input_ids_labels=torch.tensor(batch_input_ids),
+            labels=torch.tensor(batch_input_ids),
             query_input_ids=torch.tensor(batch_query_input_ids),
             attention_mask=torch.tensor(batch_attention_mask),
             query_input_attention_mask=torch.tensor(batch_query_input_attention_mask),

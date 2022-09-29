@@ -389,21 +389,6 @@ class FoCusLightningDataModuleV3DictV1(TypedDict):
     eos_index: torch.Tensor
 
 
-class FoCusLightningDataModuleV3DictV2(TypedDict):
-    input_ids: torch.Tensor
-    labels: torch.Tensor
-    labels_attention_mask: torch.Tensor
-    attention_mask: torch.Tensor
-    persona_grounding: torch.Tensor
-    knowledge_answer_index: torch.Tensor
-    persona_sep_index: torch.Tensor
-    knowledge_candidates_sep_index: torch.Tensor
-    query_eos_index: torch.Tensor
-    query_bos_index: torch.Tensor
-    bos_index: torch.Tensor
-    eos_index: torch.Tensor
-
-
 class FoCusLightningDataModuleV3(LightningDataModule):
     def __init__(
         self,
@@ -829,7 +814,6 @@ class FoCusLightningDataModuleV4(LightningDataModule):
         batch_bos_index = []
         batch_eos_index = []
         batch_labels = []
-        batch_labels_attention_mask = []
 
         for item in batch:
             input_ids = item["input_ids"]
@@ -843,7 +827,6 @@ class FoCusLightningDataModuleV4(LightningDataModule):
             bos_index = item["bos_index"]
             eos_index = item["eos_index"]
             labels = item["labels"]
-            labels_attention_mask = [1] * len(labels)
 
             pad_tokens = cast(
                 List[int],
@@ -860,7 +843,6 @@ class FoCusLightningDataModuleV4(LightningDataModule):
             attention_mask.extend(pad_attention)
 
             labels.extend(pad_labels)
-            labels_attention_mask.extend(pad_labels)
 
             batch_input_ids.append(input_ids)
             batch_attention_mask.append(attention_mask)
@@ -875,13 +857,11 @@ class FoCusLightningDataModuleV4(LightningDataModule):
             batch_bos_index.append([bos_index])
             batch_eos_index.append([eos_index])
             batch_labels.append(labels)
-            batch_labels_attention_mask.append(labels_attention_mask)
 
-        return FoCusLightningDataModuleV3DictV2(
+        return FoCusLightningDataModuleV3DictV1(
             input_ids=torch.tensor(batch_input_ids),
             labels=torch.tensor(batch_labels),
             attention_mask=torch.tensor(batch_attention_mask),
-            labels_attention_mask=torch.tensor(batch_labels_attention_mask),
             persona_grounding=torch.tensor(batch_persona_grounding),
             knowledge_answer_index=torch.tensor(
                 batch_knowledge_candidates_answer_index,

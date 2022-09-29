@@ -12,7 +12,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--is_debug"
+                "--debug_status 1"
             ]
         }
     ]

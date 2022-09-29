@@ -1,6 +1,4 @@
-from core.experiments.bart_experiments import (  # noqa: F401
-    experiment_v4,
-)
+from core.experiments.bart_experiments import experiment_v4, experiment_v5  # noqa: F401
 
 if __name__ == "__main__":
-    experiment_v4()
+    experiment_v5()

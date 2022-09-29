@@ -171,6 +171,7 @@ class BARTLightningModelV2(LightningModule):
             generated_texts=generated_responses,
             original_texts=actual_responses,
         )
+        perplexity = torch.exp(torch.tensor(lm_loss)).item()
 
         self.log(
             "valid_loss",
@@ -189,6 +190,7 @@ class BARTLightningModelV2(LightningModule):
                 "valid_blue_score": text_metrics["blue_score"],
                 "valid_rougeL_score": text_metrics["rougeL_score"],
                 "valid_chrf_score": text_metrics["chrf_score"],
+                "valid_perplexity": perplexity,
             },
             on_step=True,
             on_epoch=True,

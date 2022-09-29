@@ -107,12 +107,10 @@ def experiment_v4() -> None:
     if args.debug_status == 1:
         accelerator = "cpu"
 
-    resume_from_checkpoint = "/home/dimweb/Desktop/deeppavlov/my_focus/Test/1z9mgq52/checkpoints/facebook/bart-base-epoch=01-valid_loss=4.49.ckpt"  # noqa: E501
     trainer = Trainer(
         accelerator=accelerator,
         logger=wandb_logger.logger,
         callbacks=[checkpoint_callback],
-        resume_from_checkpoint=resume_from_checkpoint,
         **lighting_hyperparameters,
     )
 
@@ -158,7 +156,7 @@ def experiment_v5() -> None:
 
     lighting_hyperparameters = LightingHyperparametersV1(
         precision=16,
-        max_epochs=2,
+        max_epochs=4,
     ).__dict__
 
     hyperparameters = BartHyperparametersV3(
@@ -209,6 +207,8 @@ def experiment_v5() -> None:
     if args.debug_status == 1:
         accelerator = "cpu"
 
+    ckpt_path = "/home/dimweb/Desktop/deeppavlov/my_focus/Test/1z9mgq52/checkpoints/facebook/bart-base-epoch=01-valid_loss=4.49.ckpt"  # noqa: E501
+
     trainer = Trainer(
         accelerator=accelerator,
         logger=wandb_logger.logger,
@@ -216,4 +216,8 @@ def experiment_v5() -> None:
         **lighting_hyperparameters,
     )
 
-    trainer.fit(model, datamodule=data_module)
+    trainer.fit(
+        model,
+        datamodule=data_module,
+        ckpt_path=ckpt_path,
+    )

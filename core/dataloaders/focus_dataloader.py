@@ -619,18 +619,19 @@ class BartFoCusDatasetSampleV4:
         knowledge_candidates = self.focus_dataset_sample["knowledge_candidates"]
 
         # persona
-        used_persona = [
+        persona = [
             persona_item
             for persona_item, persona_grounding_item in zip(persona, persona_grounding)
             if persona_grounding_item == 1
         ]
-        if len(used_persona) > 0:
+        if len(persona) > 0:
             persona = self.tokenizer.batch_encode_plus(
-                used_persona,
+                persona,
                 add_special_tokens=False,
                 truncation=True,
                 max_length=max_persona_tokens,
             )
+            persona = persona["input_ids"]
 
         # knowledge_candidates
         used_knowledge_candidates = [
@@ -660,7 +661,7 @@ class BartFoCusDatasetSampleV4:
             max_length=max_dialog_history_tokens,
         )
 
-        flat_persona = self.__flat_list(persona["input_ids"])  # type: ignore
+        flat_persona = self.__flat_list(persona)  # type: ignore
         flat_knowledge_candidates = self.__flat_list(
             used_knowledge_candidates["input_ids"],  # type: ignore
         )

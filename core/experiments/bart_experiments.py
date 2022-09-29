@@ -308,3 +308,85 @@ def experiment_v6() -> None:
         datamodule=data_module,
         # ckpt_path=ckpt_path,
     )
+
+
+def experiment_v7() -> None:
+    """
+    seq2seq model with BartForConditionalGeneration
+    тоже самое что и experiment_v6, но увеличил train_batch_size до 8
+    """
+    parser = ExperimentArgumentParserV1()
+    args: TrainArgumentsV1 = parser.args
+
+    max_epochs = 4
+    if args.debug_status == 1:
+        max_epochs = 1
+
+    lighting_hyperparameters = LightingHyperparametersV1(
+        precision=16,
+        max_epochs=max_epochs,
+    ).__dict__
+
+    hyperparameters = BartHyperparametersV3(
+        lighting_hyperparameters=lighting_hyperparameters,
+        train_batch_size=8,
+    )
+    seed_everything(hyperparameters.seed)
+
+    tokenizer = BartFoCusTokenizerV2.from_pretrained(
+        hyperparameters.model_name,
+        hyperparameters=hyperparameters,
+    )
+    is_debug = args.debug_status
+
+    data_module = FoCusLightningDataModuleV4(
+        train_path_dataset="./datasets/FoCus/train_focus.json",
+        valid_path_dataset="./datasets/FoCus/valid_focus.json",
+        hyperparameters=hyperparameters,
+        tokenizer=tokenizer,  # type: ignore
+        debug_status=is_debug,
+    )
+    base_model = BartLMV8(
+        config=BartConfig.from_pretrained(
+            hyperparameters.model_name,
+        ),  # type: ignore
+        hyperparameters=hyperparameters,
+        tokenizer=tokenizer,  # type: ignore
+    )
+    model = BARTLightningModelV2(
+        hyperparameters=hyperparameters,
+        tokenizer=tokenizer,  # type: ignore
+        is_training=True,
+        base_model=base_model,
+    )
+
+    wandb_logger = WandbLoggerV1(
+        hyperparameters=hyperparameters,
+        is_debug=True,
+    )
+
+    checkpoint_callback = ModelCheckpoint(
+        save_top_k=1,
+        monitor="valid_loss",
+        mode="min",
+        filename=f"{hyperparameters.model_name}" + "-{epoch:02d}-{valid_loss:.2f}",
+    )
+
+    accelerator = "gpu"
+    if args.debug_status == 1:
+        accelerator = "cpu"
+
+    # ckpt_path = ""  # noqa: E501
+
+    trainer = Trainer(
+        accelerator=accelerator,
+        logger=wandb_logger.logger,
+        callbacks=[checkpoint_callback],
+        **lighting_hyperparameters,
+    )
+
+    trainer.fit(
+        model,
+        datamodule=data_module,
+        # ckpt_path=ckpt_path,
+    )

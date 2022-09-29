@@ -85,6 +85,7 @@ class BartLMV7(BartForConditionalGeneration):
         persona_grounding: Optional[torch.Tensor] = None,
         knowledge_answer_index: Optional[torch.Tensor] = None,
         knowledge_candidates_sep_index: Optional[torch.Tensor] = None,
+        labels_attention_mask: Optional[torch.Tensor] = None,
         **kwargs,
     ) -> BartOutputV1:
         """
@@ -139,7 +140,7 @@ class BartLMV7(BartForConditionalGeneration):
             attention_mask=attention_mask,
             decoder_input_ids=decoder_input_ids,
             encoder_outputs=encoder_outputs,
-            decoder_attention_mask=decoder_attention_mask,
+            decoder_attention_mask=labels_attention_mask,
             head_mask=head_mask,
             decoder_head_mask=decoder_head_mask,
             cross_attn_head_mask=cross_attn_head_mask,

@@ -154,9 +154,13 @@ def experiment_v5() -> None:
     parser = ExperimentArgumentParserV1()
     args: TrainArgumentsV1 = parser.args
 
+    max_epochs = 4
+    if args.debug_status == 1:
+        max_epochs = 1
+
     lighting_hyperparameters = LightingHyperparametersV1(
         precision=16,
-        max_epochs=4,
+        max_epochs=max_epochs,
     ).__dict__
 
     hyperparameters = BartHyperparametersV3(
@@ -207,7 +211,7 @@ def experiment_v5() -> None:
     if args.debug_status == 1:
         accelerator = "cpu"
 
-    ckpt_path = "/home/dimweb/Desktop/deeppavlov/my_focus/Test/1z9mgq52/checkpoints/facebook/bart-base-epoch=01-valid_loss=4.49.ckpt"  # noqa: E501
+    # ckpt_path = "/home/dimweb/Desktop/deeppavlov/my_focus/Test/1z9mgq52/checkpoints/facebook/bart-base-epoch=01-valid_loss=4.49.ckpt"  # noqa: E501
 
     trainer = Trainer(
         accelerator=accelerator,
@@ -219,5 +223,5 @@ def experiment_v5() -> None:
     trainer.fit(
         model,
         datamodule=data_module,
-        ckpt_path=ckpt_path,
+        # ckpt_path=ckpt_path,
     )

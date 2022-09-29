@@ -107,10 +107,12 @@ def experiment_v4() -> None:
     if args.debug_status == 1:
         accelerator = "cpu"
 
+    resume_from_checkpoint = "/home/dimweb/Desktop/deeppavlov/my_focus/Test/1z9mgq52/checkpoints/facebook/bart-base-epoch=01-valid_loss=4.49.ckpt"  # noqa: E501
     trainer = Trainer(
         accelerator=accelerator,
         logger=wandb_logger.logger,
         callbacks=[checkpoint_callback],
+        resume_from_checkpoint=resume_from_checkpoint,
         **lighting_hyperparameters,
     )
 

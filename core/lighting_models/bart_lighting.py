@@ -5,7 +5,7 @@ from core.base_models.bart_models import (
     BartLMV8,
 )
 from core.base_models.model_outputs.bart_outputs import BartOutputV1
-from core.dataloaders.focus_dataloader import (
+from core.dataloaders.focus.lighting.bart_lighting_dataloaders import (
     FoCusLightningDataModuleV2DictV1,
 )
 from core.hyperparameters.bart_hyperparameters import (

@@ -2,7 +2,7 @@ from core.base_models.bart_models import (  # noqa: F401
     BartLMV7,
     BartLMV8,
 )
-from core.dataloaders.focus_dataloader import (
+from core.dataloaders.focus.lighting.bart_lighting_dataloaders import (
     FoCusLightningDataModuleV3,
     FoCusLightningDataModuleV4,
 )

@@ -218,12 +218,13 @@ class FoCusDatasetKnowledgeV2:
     def __init__(
         self,
         input_dataset_path: str,
+        is_train: bool,
     ) -> None:
         assert input_dataset_path is not None, "input_dataset_path is None"
 
         self.input_dataset_path: str = input_dataset_path
         self.dataset: List[FoCusDatasetKnowledgeSampleDictV1] = []
-
+        self.is_train = is_train
         self.__build_dataset()
 
     def __build_dataset(self) -> None:
@@ -262,17 +263,19 @@ class FoCusDatasetKnowledgeV2:
                         knowledge=knowledge,
                         unique_id=unique_id,
                     )
+                    if self.is_train:
+                        if is_used:
+                            has_positive = True
+                            dataset.append(data_sample)
 
-                    if is_used:
-                        has_positive = True
+                        if not is_used:
+                            has_negative = True
+                            dataset.append(data_sample)
+
+                        if has_positive and has_negative:
+                            break
+                    else:
                         dataset.append(data_sample)
-
-                    if not is_used:
-                        has_negative = True
-                        dataset.append(data_sample)
-
-                    if has_positive and has_negative:
-                        break
 
         return dataset
 

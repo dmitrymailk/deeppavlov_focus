@@ -152,9 +152,11 @@ class DebertaV3FoCusLightningDataModuleV2(LightningDataModule):
     def setup(self, stage: Optional[str] = None):
         train_dataset = FoCusDatasetKnowledgeV2(
             input_dataset_path=self.train_path_dataset,
+            is_train=True,
         )
         valid_dataset = FoCusDatasetKnowledgeV2(
             input_dataset_path=self.valid_path_dataset,
+            is_train=False,
         )
 
         if self.debug_status == 1:

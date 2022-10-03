@@ -59,7 +59,7 @@ class DebertaV3FoCusKnowledgeDatasetSampleV1:
         )
 
         encoded_dialog = self.tokenizer.encode(  # type: ignore
-            dialog,
+            dialog[-2],
             add_special_tokens=False,
             truncation=True,
             max_length=max_dialog_history_tokens,

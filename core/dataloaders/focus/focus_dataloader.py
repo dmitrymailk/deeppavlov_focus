@@ -264,11 +264,11 @@ class FoCusDatasetKnowledgeV2:
                         unique_id=unique_id,
                     )
                     if self.is_train:
-                        if is_used:
+                        if i == knowledge_answer_index:
                             has_positive = True
                             dataset.append(data_sample)
 
-                        if not is_used:
+                        if not i == knowledge_answer_index and not has_negative:
                             has_negative = True
                             dataset.append(data_sample)
 

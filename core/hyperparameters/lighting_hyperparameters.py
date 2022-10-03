@@ -8,6 +8,6 @@ class LightingHyperparametersV1:
     accumulate_grad_batches: int = 1
     gradient_clip_val: float = 0.0
     auto_scale_batch_size: Optional[str] = None
-    profiler: str = "advanced"
+    profiler: str = "simple"
     deterministic: bool = False
     max_epochs: int = 1

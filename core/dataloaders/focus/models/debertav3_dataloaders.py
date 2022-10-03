@@ -5,6 +5,7 @@ from torch.utils.data import Dataset
 from core.dataloaders.focus.focus_dataloader import (
     FoCusDatasetKnowledgeSampleDictV1,
     FoCusDatasetKnowledgeV1,
+    FoCusDatasetKnowledgeV2,
 )
 from core.hyperparameters.debertav3_hyperparameters import DebertaV3HyperparametersV1
 
@@ -83,7 +84,7 @@ class DebertaV3FoCusKnowledgeDatasetSampleV1:
 class DebertaV3PytorchFoCusKnowledgeDatasetV1(Dataset):
     def __init__(
         self,
-        dataset: FoCusDatasetKnowledgeV1,
+        dataset: FoCusDatasetKnowledgeV1 | FoCusDatasetKnowledgeV2,
         tokenizer: DebertaV2Tokenizer,
         hyperparameters: DebertaV3HyperparametersV1,
     ) -> None:

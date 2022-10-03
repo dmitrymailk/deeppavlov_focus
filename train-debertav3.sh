@@ -34,7 +34,7 @@ while getopts "d:" opt; do
 done
 
 # clear dir
-rm -rf $training_logs*
+# rm -rf $training_logs*
 
 if [ $debug -eq 1 ]; then
     debug

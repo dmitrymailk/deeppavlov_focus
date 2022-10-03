@@ -212,3 +212,77 @@ class FoCusDatasetKnowledgeV1:
 
     def __getitem__(self, index: int) -> FoCusDatasetKnowledgeSampleDictV1:
         return self.dataset[index]
+
+
+class FoCusDatasetKnowledgeV2:
+    def __init__(
+        self,
+        input_dataset_path: str,
+    ) -> None:
+        assert input_dataset_path is not None, "input_dataset_path is None"
+
+        self.input_dataset_path: str = input_dataset_path
+        self.dataset: List[FoCusDatasetKnowledgeSampleDictV1] = []
+
+        self.__build_dataset()
+
+    def __build_dataset(self) -> None:
+        initial_dataset = self.__read_dataset(self.input_dataset_path)
+        self.dataset = self.__create_initial_dataset(initial_dataset=initial_dataset)
+
+    def __create_initial_dataset(
+        self,
+        initial_dataset: Dict,
+    ) -> List[FoCusDatasetKnowledgeSampleDictV1]:
+        dataset = []
+        initial_dataset_data = initial_dataset["data"]
+
+        for dialog_set in initial_dataset_data:
+            utterances = dialog_set["utterance"]
+            knowledge = dialog_set["knowledge"]
+            dialog_id = dialog_set["dialogID"]
+
+            for utterance in utterances:
+                knowledge_candidates = utterance["knowledge_candidates"]
+                knowledge_answer_index = utterance["knowledge_answer_index"]
+                dialog_index_key = [
+                    item for item in utterance.keys() if "dialog" in item
+                ][0]
+                dialog = utterance[dialog_index_key]
+                unique_id = f"{dialog_id}_{dialog_index_key}"
+
+                has_positive = False
+                has_negative = False
+                for i, knowledge_candidate in enumerate(knowledge_candidates):
+                    is_used = int(i == knowledge_answer_index)
+                    data_sample = FoCusDatasetKnowledgeSampleDictV1(
+                        knowledge_candidate=knowledge_candidate,
+                        dialog=dialog,
+                        knowledge_candidate_usage=is_used,
+                        knowledge=knowledge,
+                        unique_id=unique_id,
+                    )
+
+                    if is_used:
+                        has_positive = True
+                        dataset.append(data_sample)
+
+                    if not is_used:
+                        has_negative = True
+                        dataset.append(data_sample)
+
+                    if has_positive and has_negative:
+                        break
+
+        return dataset
+
+    def __read_dataset(self, input_path: str) -> Dict:
+        with open(input_path, "r") as f:
+            dataset = json.load(f)
+        return dataset
+
+    def __len__(self) -> int:
+        return len(self.dataset)
+
+    def __getitem__(self, index: int) -> FoCusDatasetKnowledgeSampleDictV1:
+        return self.dataset[index]

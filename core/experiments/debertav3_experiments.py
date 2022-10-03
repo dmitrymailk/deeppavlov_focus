@@ -37,7 +37,8 @@ def experiment_1():
 
     hyperparameters = DebertaV3HyperparametersV1(
         lighting_hyperparameters=lighting_hyperparameters,
-        train_batch_size=8,
+        train_batch_size=16,
+        valid_batch_size=16,
     )
     seed_everything(hyperparameters.seed)
 

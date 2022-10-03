@@ -9,5 +9,5 @@ class LightingHyperparametersV1:
     gradient_clip_val: float = 0.0
     auto_scale_batch_size: Optional[str] = None
     profiler: str = "simple"
-    deterministic: bool = True
+    deterministic: bool = False
     max_epochs: int = 1

@@ -1,6 +1,9 @@
 from core.hyperparameters.bart_hyperparameters import (
     BartHyperparametersV3,
 )
+from core.hyperparameters.debertav3_hyperparameters import (
+    DebertaV3HyperparametersV1,
+)
 
 from pytorch_lightning.loggers import WandbLogger  # type: ignore
 
@@ -23,5 +26,20 @@ class WandbLoggerV1:
 
         return WandbLogger(
             project=project,
+            name=self.hyperparameters.model_name,
+        )
+
+
+class WandbLoggerV2:
+    def __init__(
+        self,
+        hyperparameters: DebertaV3HyperparametersV1,  # noqa: W503
+    ) -> None:
+        self.hyperparameters = hyperparameters
+
+    @property
+    def logger(self) -> WandbLogger:
+        return WandbLogger(
+            project=self.hyperparameters.project_name,
             name=self.hyperparameters.model_name,
         )

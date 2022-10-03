@@ -167,3 +167,5 @@ Test
 training_logs
 temp.py
 cache
+focus_knowledge_classification
+*.ckpt

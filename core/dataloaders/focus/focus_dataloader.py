@@ -2,9 +2,6 @@ import json
 from typing import Dict, List, TypedDict
 
 
-from torch.utils.data import Dataset
-
-
 class FoCusDatasetSampleDictV1(TypedDict):
     """
     persona: List[str] список предложений из персоны
@@ -144,15 +141,17 @@ class FoCusDatasetKnowledgeSampleDictV1(TypedDict):
     knowledge_candidate_usage: int 0 или 1 показыват использовалилось ли знание
         в генерации ответа
     knowledge: List[str] все знания об объекте из википедии что у нас есть
+    unique_id: str уникальный id сформированный из id диалога и id utterance
     """
 
     knowledge_candidate: str
     dialog: List[str]
     knowledge_candidate_usage: int
     knowledge: List[str]
+    unique_id: str
 
 
-class FoCusDatasetKnowledgeV1(Dataset):
+class FoCusDatasetKnowledgeV1:
     def __init__(
         self,
         input_dataset_path: str,
@@ -178,6 +177,7 @@ class FoCusDatasetKnowledgeV1(Dataset):
         for dialog_set in initial_dataset_data:
             utterances = dialog_set["utterance"]
             knowledge = dialog_set["knowledge"]
+            dialog_id = dialog_set["dialogID"]
 
             for utterance in utterances:
                 knowledge_candidates = utterance["knowledge_candidates"]
@@ -186,6 +186,8 @@ class FoCusDatasetKnowledgeV1(Dataset):
                     item for item in utterance.keys() if "dialog" in item
                 ][0]
                 dialog = utterance[dialog_index_key]
+                unique_id = f"{dialog_id}_{dialog_index_key}"
+
                 for i, knowledge_candidate in enumerate(knowledge_candidates):
                     is_used = int(i == knowledge_answer_index)
                     data_sample = FoCusDatasetKnowledgeSampleDictV1(
@@ -193,6 +195,7 @@ class FoCusDatasetKnowledgeV1(Dataset):
                         dialog=dialog,
                         knowledge_candidate_usage=is_used,
                         knowledge=knowledge,
+                        unique_id=unique_id,
                     )
 
                     dataset.append(data_sample)

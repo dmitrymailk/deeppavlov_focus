@@ -12,7 +12,20 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--debug_status 1"
+                "--debug_status",
+                "1"
+            ]
+        },
+        {
+            "name": "Debertav3 Debug",
+            "type": "python",
+            "request": "launch",
+            "module": "core.train_scripts.debertav3_training",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--debug_status",
+                "1"
             ]
         }
     ]

@@ -238,7 +238,7 @@ def experiment_3():
     if args.debug_status == 1:
         accelerator = "cpu"
 
-    ckpt_path = "./focus_knowledge_classification/1is9z2lu/checkpoints/microsoft/deberta-v3-base-epoch=00-valid_loss=0.53.ckpt"  # noqa: E501
+    ckpt_path = "/home/dimweb/Desktop/deeppavlov/my_focus/focus_knowledge_classification/1is9z2lu/checkpoints/microsoft/deberta-v3-base-epoch=00-valid_loss=0.53.ckpt"  # noqa: E501
 
     trainer = Trainer(
         accelerator=accelerator,

@@ -20,7 +20,6 @@ class DebertaV3HyperparametersV1:
     learning_rate: float = 6.25e-5
     adam_epsilon: float = 1e-8
     weight_decay: float = 0.01
-    train_epochs: int = 1
     model_name: str = "microsoft/deberta-v3-base"
     project_name: str = "focus_knowledge_classification"
     lighting_hyperparameters: Dict | None = None

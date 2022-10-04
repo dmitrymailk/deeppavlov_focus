@@ -355,7 +355,7 @@ def experiment_5():
 
     hyperparameters = DebertaV3HyperparametersV1(
         lighting_hyperparameters=lighting_hyperparameters,
-        train_batch_size=4,
+        train_batch_size=2,
         valid_batch_size=4,
         model_name="microsoft/deberta-v3-large",
     )

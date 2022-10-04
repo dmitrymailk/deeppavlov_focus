@@ -1,4 +1,7 @@
-from core.base_models.debertav3_models import DebertaV3ForClassificationV1
+from core.base_models.debertav3_models import (
+    DebertaV3ForClassificationV1,
+    DebertaV3ForClassificationV2,
+)
 from core.dataloaders.focus.lighting.debertav3_lighting_dataloaders import (
     DebertaV3FoCusLightningDataModuleV1,
     DebertaV3FoCusLightningDataModuleV2,
@@ -545,6 +548,91 @@ def experiment_7(doc: str = ""):
         debug_status=is_debug,
     )
     base_model = DebertaV3ForClassificationV1(
+        config=DebertaV2Config.from_pretrained(
+            hyperparameters.model_name,
+        ),  # type: ignore
+    )
+    model = DebertaV3LightningModelV1(
+        hyperparameters=hyperparameters,
+        tokenizer=tokenizer,  # type: ignore
+        base_model=base_model,
+    )
+
+    wandb_logger = WandbLoggerV2(
+        hyperparameters=hyperparameters,
+    )
+
+    checkpoint_callback = ModelCheckpoint(
+        save_top_k=1,
+        monitor="valid_loss",
+        mode="min",
+        filename=f"{hyperparameters.model_name}" + "-{epoch:02d}-{valid_loss:.2f}",
+    )
+
+    accelerator = "gpu"
+    if args.debug_status == 1:
+        accelerator = "cpu"
+
+    # ckpt_path = "/home/dimweb/Desktop/deeppavlov/my_focus/focus_knowledge_classification/1is9z2lu/checkpoints/microsoft/deberta-v3-base-epoch=00-valid_loss=0.53.ckpt"  # noqa: E501
+
+    trainer = Trainer(
+        accelerator=accelerator,
+        logger=wandb_logger.logger,
+        callbacks=[checkpoint_callback],
+        **lighting_hyperparameters,
+    )
+
+    trainer.fit(
+        model,
+        datamodule=data_module,
+        # ckpt_path=ckpt_path,
+    )
+
+
+@experiment_decorator
+def experiment_8(doc: str = ""):
+    """
+    использую microsoft/deberta-v3-base
+    увеличил контекст. теперь
+    буду брать последний вопрос от пользователя, предыдущий ответ бота и предыдущий
+    вопрос пользователя. не использую персону.
+    убрал context pooler и dropout
+    """
+    parser = ExperimentArgumentParserV1()
+    args: TrainArgumentsV1 = parser.args
+    is_debug = args.debug_status
+
+    max_epochs = 2
+    if args.debug_status == 1:
+        max_epochs = 1
+
+    lighting_hyperparameters = LightingHyperparametersV1(
+        precision=16,
+        max_epochs=max_epochs,
+        accumulate_grad_batches=1,
+    ).__dict__
+
+    hyperparameters = DebertaV3HyperparametersV1(
+        lighting_hyperparameters=lighting_hyperparameters,
+        train_batch_size=16,
+        valid_batch_size=16,
+        model_name="microsoft/deberta-v3-base",
+        experiment_description=doc,
+    )
+    seed_everything(hyperparameters.seed)
+
+    tokenizer = DebertaV2Tokenizer.from_pretrained(
+        hyperparameters.model_name,
+    )
+
+    data_module = DebertaV3FoCusLightningDataModuleV3(
+        train_path_dataset="./datasets/FoCus/train_focus.json",
+        valid_path_dataset="./datasets/FoCus/valid_focus.json",
+        hyperparameters=hyperparameters,
+        tokenizer=tokenizer,  # type: ignore
+        debug_status=is_debug,
+    )
+    base_model = DebertaV3ForClassificationV2(
         config=DebertaV2Config.from_pretrained(
             hyperparameters.model_name,
         ),  # type: ignore

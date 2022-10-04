@@ -1,7 +1,10 @@
 from collections import defaultdict
 from typing import Dict
 
-from core.base_models.debertav3_models import DebertaV3ForClassificationV1
+from core.base_models.debertav3_models import (
+    DebertaV3ForClassificationV1,
+    DebertaV3ForClassificationV2,
+)
 from core.base_models.model_outputs.debertav3_outputs import DebertaV3OutputV1
 from core.hyperparameters.debertav3_hyperparameters import DebertaV3HyperparametersV1
 
@@ -18,7 +21,7 @@ class DebertaV3LightningModelV1(LightningModule):
         self,
         hyperparameters: DebertaV3HyperparametersV1,
         tokenizer: DebertaV2Tokenizer,
-        base_model: DebertaV3ForClassificationV1,
+        base_model: DebertaV3ForClassificationV1 | DebertaV3ForClassificationV2,
     ) -> None:
         super().__init__()
         self.hparams.update(hyperparameters.__dict__)

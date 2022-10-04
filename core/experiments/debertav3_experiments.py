@@ -6,6 +6,7 @@ from core.dataloaders.focus.lighting.debertav3_lighting_dataloaders import (
     DebertaV3FoCusLightningDataModuleV1,
     DebertaV3FoCusLightningDataModuleV2,
     DebertaV3FoCusLightningDataModuleV3,
+    DebertaV3FoCusLightningDataModuleV4,
 )
 from core.hyperparameters.debertav3_hyperparameters import DebertaV3HyperparametersV1
 from core.hyperparameters.lighting_hyperparameters import LightingHyperparametersV1
@@ -540,7 +541,7 @@ def experiment_7(doc: str = ""):
         hyperparameters.model_name,
     )
 
-    data_module = DebertaV3FoCusLightningDataModuleV3(
+    data_module = DebertaV3FoCusLightningDataModuleV4(
         train_path_dataset="./datasets/FoCus/train_focus.json",
         valid_path_dataset="./datasets/FoCus/valid_focus.json",
         hyperparameters=hyperparameters,
@@ -625,7 +626,7 @@ def experiment_8(doc: str = ""):
         hyperparameters.model_name,
     )
 
-    data_module = DebertaV3FoCusLightningDataModuleV3(
+    data_module = DebertaV3FoCusLightningDataModuleV4(
         train_path_dataset="./datasets/FoCus/train_focus.json",
         valid_path_dataset="./datasets/FoCus/valid_focus.json",
         hyperparameters=hyperparameters,

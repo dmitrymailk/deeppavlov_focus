@@ -503,7 +503,7 @@ def experiment_6():
 
 
 @experiment_decorator
-def experiment_7(doc: str):
+def experiment_7(doc: str = ""):
     """
     использую microsoft/deberta-v3-base
     увеличил контекст. теперь

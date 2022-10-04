@@ -431,6 +431,7 @@ def experiment_6():
     lighting_hyperparameters = LightingHyperparametersV1(
         precision=16,
         max_epochs=max_epochs,
+        accumulate_grad_batches=16,
     ).__dict__
 
     hyperparameters = DebertaV3HyperparametersV1(
@@ -438,7 +439,7 @@ def experiment_6():
         train_batch_size=2,
         valid_batch_size=4,
         model_name="microsoft/deberta-v3-large",
-        experiment_description=__doc__,
+        experiment_description=experiment_6.__doc__,
     )
     seed_everything(hyperparameters.seed)
 

@@ -11,3 +11,4 @@ class LightingHyperparametersV1:
     # profiler: str = "simple"
     deterministic: bool = False
     max_epochs: int = 1
+    accumulate_grad_batches: int = 1

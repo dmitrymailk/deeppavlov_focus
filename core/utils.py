@@ -1,6 +1,7 @@
 import argparse
 from dataclasses import dataclass
-from typing import List
+from itertools import chain
+from typing import List, TypeVar
 
 from datasets import load_metric  # type: ignore
 
@@ -10,6 +11,7 @@ from rouge_score import rouge_scorer
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from torch.utils.data import Dataset
 
 from torchmetrics import CHRFScore  # type: ignore
 
@@ -165,3 +167,68 @@ class ExperimentArgumentParserV1:
         args = TrainArgumentsV1(**args)
 
         self.args = args
+
+
+def flat_list(list_of_lists: List[List] | List) -> List:
+    return list(chain.from_iterable(list_of_lists))
+
+
+InitialDatasetClass = TypeVar("InitialDatasetClass")
+TokenizerClass = TypeVar("TokenizerClass")
+DatasetSampleClass = TypeVar("DatasetSampleClass")
+HyperParametersClass = TypeVar("HyperParametersClass")
+
+
+class PytorchDatasetFactory:
+    def __init__(
+        self,
+        dataset: InitialDatasetClass,
+        tokenizer: TokenizerClass,
+        dataset_sample_class: DatasetSampleClass,
+        hyperparameters: HyperParametersClass,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.dataset = dataset
+        self.tokenizer = tokenizer
+        self.dataset_sample_class = dataset_sample_class
+        self.hyperparameters = hyperparameters
+
+    def __get_fabric(self) -> Dataset:
+        parent_self = self
+
+        class GeneralDataset(Dataset):
+            def __init__(
+                self,
+                dataset: InitialDatasetClass,
+                tokenizer: TokenizerClass,
+                hyperparameters: HyperParametersClass,
+            ) -> None:
+                self.dataset = dataset
+                self.tokenizer = tokenizer
+                self.hyperparameters = hyperparameters
+
+            def __len__(self) -> int:
+                return len(self.dataset)  # type: ignore
+
+            def __getitem__(self, idx: int) -> DatasetSampleClass:
+                return parent_self.dataset_sample_class(  # type: ignore
+                    self.dataset[idx],  # type: ignore
+                    self.tokenizer,  # type: ignore
+                    self.hyperparameters,
+                ).get_dict()  # type: ignore
+
+        dataset = GeneralDataset(
+            self.dataset,
+            self.tokenizer,
+            self.hyperparameters,
+        )
+        return dataset
+
+    def __new__(cls, *args, **kwargs) -> Dataset:
+        new_object = super(PytorchDatasetFactory, cls).__new__(
+            cls,
+        )
+        new_object.__init__(*args, **kwargs)
+        return new_object.__get_fabric()

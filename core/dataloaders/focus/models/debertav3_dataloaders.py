@@ -1,13 +1,15 @@
 from typing import List, TypedDict
 
-from torch.utils.data import Dataset
-
 from core.dataloaders.focus.focus_dataloader import (
     FoCusDatasetKnowledgeSampleDictV1,
     FoCusDatasetKnowledgeV1,
     FoCusDatasetKnowledgeV2,
 )
 from core.hyperparameters.debertav3_hyperparameters import DebertaV3HyperparametersV1
+from core.utils import flat_list
+
+from torch.utils.data import Dataset
+
 
 from transformers.utils.dummy_sentencepiece_objects import DebertaV2Tokenizer
 
@@ -104,3 +106,84 @@ class DebertaV3PytorchFoCusKnowledgeDatasetV1(Dataset):
         )
         train_sample = train_sample.get_dict()
         return train_sample
+
+
+class DebertaV3FoCusKnowledgeDatasetSampleV2:
+    def __init__(
+        self,
+        dataset_sample: FoCusDatasetKnowledgeSampleDictV1,
+        tokenizer: DebertaV2Tokenizer,
+        h_params: DebertaV3HyperparametersV1,
+    ) -> None:
+        self.dataset_sample = dataset_sample
+        self.tokenizer: DebertaV2Tokenizer = tokenizer
+        self.h_params = h_params
+
+        self.bos_token_id = self.tokenizer.bos_token_id  # type: ignore
+        self.eos_token_id = self.tokenizer.eos_token_id  # type: ignore
+
+    def get_dict(self) -> DebertaV3FoCusKnowledgeDatasetSampleDictV1:
+        """
+        Returns:
+            input_ids (List[int]):
+                [BOS][used_persona][knowledge_candidate][dialog][-2][EOS]
+                [dialog][-2] - это последний вопрос от пользователя
+                [knowledge_candidate] - это кандидат на знание. большая часть
+                    будет неправильными ответами
+                [used_persona] - это персона, которая была использована для ответа
+            labels (int): 0 или 1. ложь или правда. использовалось ли знание для ответа
+                или нет.
+        """
+        max_dialog_history_tokens = self.h_params.max_dialog_history_tokens
+        max_knowledge_candidates_tokens = self.h_params.max_knowledge_candidates_tokens
+        max_persona_tokens = self.h_params.max_persona_tokens
+
+        knowledge_candidate = self.dataset_sample["knowledge_candidate"]
+        dialog = self.dataset_sample["dialog"]
+        knowledge_candidate_usage = self.dataset_sample["knowledge_candidate_usage"]
+        unique_id = self.dataset_sample["unique_id"]
+        persona = self.dataset_sample["persona"]
+        persona_grounding = self.dataset_sample["persona_grounding"]
+
+        used_persona = [
+            sent for sent, used in zip(persona, persona_grounding) if used == 1
+        ]
+
+        if len(used_persona) > 0:
+            used_persona = self.tokenizer.batch_encode_plus(  # type: ignore
+                used_persona,
+                add_special_tokens=False,
+                truncation=True,
+                max_length=max_persona_tokens,
+            )
+            used_persona = used_persona["input_ids"]
+            used_persona = flat_list(used_persona)
+
+        encoded_knowledge_candidate = self.tokenizer.encode(  # type: ignore
+            knowledge_candidate,
+            add_special_tokens=False,
+            truncation=True,
+            max_length=max_knowledge_candidates_tokens,
+        )
+
+        encoded_dialog = self.tokenizer.encode(  # type: ignore
+            dialog[-2],
+            add_special_tokens=False,
+            truncation=True,
+            max_length=max_dialog_history_tokens,
+        )
+        input_ids = [
+            self.bos_token_id,
+            *used_persona,
+            *encoded_knowledge_candidate,
+            *encoded_dialog,
+            self.eos_token_id,
+        ]
+        attention_mask = [1] * len(input_ids)
+
+        return DebertaV3FoCusKnowledgeDatasetSampleDictV1(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            labels=knowledge_candidate_usage,
+            unique_id=unique_id,
+        )

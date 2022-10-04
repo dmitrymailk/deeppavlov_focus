@@ -8,6 +8,7 @@ from core.dataloaders.focus.focus_dataloader import (
 )
 from core.dataloaders.focus.models.debertav3_dataloaders import (
     DebertaV3FoCusKnowledgeDatasetSampleDictV1,
+    DebertaV3FoCusKnowledgeDatasetSampleV2,
     DebertaV3PytorchFoCusKnowledgeDatasetV1,
 )
 from core.hyperparameters.debertav3_hyperparameters import DebertaV3HyperparametersV1
@@ -18,6 +19,8 @@ import torch
 from torch.utils.data import DataLoader
 
 from transformers.utils.dummy_sentencepiece_objects import DebertaV2Tokenizer
+
+from core.utils import PytorchDatasetFactory
 
 
 class DebertaV3FoCusLightningDataModuleV1DictV1(TypedDict):
@@ -232,4 +235,52 @@ class DebertaV3FoCusLightningDataModuleV2(LightningDataModule):
             labels=torch.tensor(batch_labels),
             attention_mask=torch.tensor(batch_attention_mask),
             unique_ids=batch_unique_ids,
+        )
+
+
+class DebertaV3FoCusLightningDataModuleV3(DebertaV3FoCusLightningDataModuleV2):
+    def __init__(
+        self,
+        train_path_dataset: str,
+        valid_path_dataset: str,
+        hyperparameters: DebertaV3HyperparametersV1,
+        tokenizer: DebertaV2Tokenizer,
+        debug_status: int = 0,
+    ) -> None:
+        super().__init__(
+            train_path_dataset,
+            valid_path_dataset,
+            hyperparameters,
+            tokenizer,
+            debug_status,
+        )
+
+    def setup(self, stage: Optional[str] = None):
+        train_dataset = FoCusDatasetKnowledgeV2(
+            input_dataset_path=self.train_path_dataset,
+            is_train=True,
+        )
+        valid_dataset = FoCusDatasetKnowledgeV2(
+            input_dataset_path=self.valid_path_dataset,
+            is_train=False,
+        )
+
+        if self.debug_status == 1:
+            train_dataset = train_dataset[:2]  # type: ignore
+            valid_dataset = valid_dataset[:2]  # type: ignore
+        elif self.debug_status == 2:
+            train_dataset = train_dataset[:15000]  # type: ignore
+            valid_dataset = valid_dataset  # type: ignore
+
+        self.train_dataset = PytorchDatasetFactory(
+            dataset=train_dataset,
+            tokenizer=self.tokenizer,
+            hyperparameters=self.hyperparameters,
+            dataset_sample_class=DebertaV3FoCusKnowledgeDatasetSampleV2,
+        )
+        self.valid_dataset = PytorchDatasetFactory(
+            dataset=valid_dataset,
+            tokenizer=self.tokenizer,
+            hyperparameters=self.hyperparameters,
+            dataset_sample_class=DebertaV3FoCusKnowledgeDatasetSampleV2,
         )

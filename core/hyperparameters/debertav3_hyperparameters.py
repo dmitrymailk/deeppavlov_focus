@@ -7,6 +7,7 @@ class DebertaV3HyperparametersV1:
     dialog_history_length: int = 1
     knowledge_length: int = 1
     # examples lengths
+    max_persona_tokens: int = 15
     max_dialog_history_tokens: int = 80
     max_knowledge_candidates_tokens: int = 250
     max_full_dialog_history_tokens: int = 2 * 80

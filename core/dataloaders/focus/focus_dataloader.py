@@ -142,6 +142,7 @@ class FoCusDatasetKnowledgeSampleDictV1(TypedDict):
         в генерации ответа
     knowledge: List[str] все знания об объекте из википедии что у нас есть
     unique_id: str уникальный id сформированный из id диалога и id utterance
+    persona: List[str] персона
     """
 
     knowledge_candidate: str
@@ -149,6 +150,8 @@ class FoCusDatasetKnowledgeSampleDictV1(TypedDict):
     knowledge_candidate_usage: int
     knowledge: List[str]
     unique_id: str
+    persona: List[str]
+    persona_grounding: List[int]
 
 
 class FoCusDatasetKnowledgeV1:
@@ -178,10 +181,12 @@ class FoCusDatasetKnowledgeV1:
             utterances = dialog_set["utterance"]
             knowledge = dialog_set["knowledge"]
             dialog_id = dialog_set["dialogID"]
+            persona = dialog_set["persona"]
 
             for utterance in utterances:
                 knowledge_candidates = utterance["knowledge_candidates"]
                 knowledge_answer_index = utterance["knowledge_answer_index"]
+                persona_grounding = list(map(int, utterance["persona_grounding"]))
                 dialog_index_key = [
                     item for item in utterance.keys() if "dialog" in item
                 ][0]
@@ -196,6 +201,8 @@ class FoCusDatasetKnowledgeV1:
                         knowledge_candidate_usage=is_used,
                         knowledge=knowledge,
                         unique_id=unique_id,
+                        persona=persona,
+                        persona_grounding=persona_grounding,
                     )
 
                     dataset.append(data_sample)
@@ -242,10 +249,12 @@ class FoCusDatasetKnowledgeV2:
             utterances = dialog_set["utterance"]
             knowledge = dialog_set["knowledge"]
             dialog_id = dialog_set["dialogID"]
+            persona = dialog_set["persona"]
 
             for utterance in utterances:
                 knowledge_candidates = utterance["knowledge_candidates"]
                 knowledge_answer_index = utterance["knowledge_answer_index"]
+                persona_grounding = list(map(int, utterance["persona_grounding"]))
                 dialog_index_key = [
                     item for item in utterance.keys() if "dialog" in item
                 ][0]
@@ -262,6 +271,8 @@ class FoCusDatasetKnowledgeV2:
                         knowledge_candidate_usage=is_used,
                         knowledge=knowledge,
                         unique_id=unique_id,
+                        persona=persona,
+                        persona_grounding=persona_grounding,
                     )
                     if self.is_train:
                         if i == knowledge_answer_index:

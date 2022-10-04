@@ -24,6 +24,7 @@ class DebertaV3HyperparametersV1:
     model_name: str = "microsoft/deberta-v3-base"
     project_name: str = "focus_knowledge_classification"
     lighting_hyperparameters: Dict | None = None
+    experiment_description: str | None = ""
     """
         максимум может быть 512 токенов
         данные делятся на:

@@ -8,6 +8,7 @@ from core.dataloaders.focus.focus_dataloader import (
 )
 from core.dataloaders.focus.models.debertav3_dataloaders import (
     DebertaV3FoCusKnowledgeDatasetSampleDictV1,
+    DebertaV3FoCusKnowledgeDatasetSampleV1,
     DebertaV3FoCusKnowledgeDatasetSampleV2,
     DebertaV3PytorchFoCusKnowledgeDatasetV1,
 )
@@ -168,16 +169,19 @@ class DebertaV3FoCusLightningDataModuleV2(LightningDataModule):
         elif self.debug_status == 2:
             train_dataset = train_dataset[:15000]  # type: ignore
             valid_dataset = valid_dataset  # type: ignore
-
-        self.train_dataset = DebertaV3PytorchFoCusKnowledgeDatasetV1(
-            dataset=train_dataset,  # type: ignore
+        # DebertaV3FoCusKnowledgeDatasetSampleV1
+        self.train_dataset = PytorchDatasetFactory(
+            dataset=train_dataset,
             tokenizer=self.tokenizer,
             hyperparameters=self.hyperparameters,
+            dataset_sample_class=DebertaV3FoCusKnowledgeDatasetSampleV1,
         )
-        self.valid_dataset = DebertaV3PytorchFoCusKnowledgeDatasetV1(
-            dataset=valid_dataset,  # type: ignore
+
+        self.valid_dataset = PytorchDatasetFactory(
+            dataset=valid_dataset,
             tokenizer=self.tokenizer,
             hyperparameters=self.hyperparameters,
+            dataset_sample_class=DebertaV3FoCusKnowledgeDatasetSampleV1,
         )
 
     def train_dataloader(self) -> DataLoader:

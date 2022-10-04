@@ -232,3 +232,18 @@ class PytorchDatasetFactory:
         )
         new_object.__init__(*args, **kwargs)
         return new_object.__get_fabric()
+
+
+def experiment_decorator(function):
+    def wrapper():
+        doc = function.__doc__
+        if doc is None:
+            doc = "No description"
+
+        func_name = function.__name__
+        doc = f"{func_name}:\n{doc}"
+
+        result = function(doc)
+        return result
+
+    return wrapper

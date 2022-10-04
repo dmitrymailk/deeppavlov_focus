@@ -187,3 +187,69 @@ class DebertaV3FoCusKnowledgeDatasetSampleV2:
             labels=knowledge_candidate_usage,
             unique_id=unique_id,
         )
+
+
+class DebertaV3FoCusKnowledgeDatasetSampleV3:
+    def __init__(
+        self,
+        dataset_sample: FoCusDatasetKnowledgeSampleDictV1,
+        tokenizer: DebertaV2Tokenizer,
+        h_params: DebertaV3HyperparametersV1,
+    ) -> None:
+        self.dataset_sample = dataset_sample
+        self.tokenizer: DebertaV2Tokenizer = tokenizer
+        self.h_params = h_params
+
+        self.bos_token_id = self.tokenizer.bos_token_id  # type: ignore
+        self.eos_token_id = self.tokenizer.eos_token_id  # type: ignore
+
+    def get_dict(self) -> DebertaV3FoCusKnowledgeDatasetSampleDictV1:
+        """
+        Returns:
+            input_ids (List[int]):
+                [BOS][knowledge_candidate][dialog][-2][EOS]
+                [dialog] - это последний вопрос от пользователя, предыдущий
+                    ответ бота и предыдущий вопрос пользователя
+                [knowledge_candidate] - это кандидат на знание. большая часть
+                    будет неправильными ответами
+            labels (int): 0 или 1. ложь или правда. использовалось ли знание для ответа
+                или нет.
+        """
+        max_dialog_history_tokens = self.h_params.max_dialog_history_tokens
+        max_knowledge_candidates_tokens = self.h_params.max_knowledge_candidates_tokens
+
+        knowledge_candidate = self.dataset_sample["knowledge_candidate"]
+        dialog = self.dataset_sample["dialog"]
+        knowledge_candidate_usage = self.dataset_sample["knowledge_candidate_usage"]
+        unique_id = self.dataset_sample["unique_id"]
+
+        encoded_knowledge_candidate = self.tokenizer.encode(  # type: ignore
+            knowledge_candidate,
+            add_special_tokens=False,
+            truncation=True,
+            max_length=max_knowledge_candidates_tokens,
+        )
+
+        encoded_dialog = self.tokenizer.batch_encode_plus(  # type: ignore
+            dialog[-4:-1],
+            add_special_tokens=False,
+            truncation=True,
+            max_length=max_dialog_history_tokens,
+        )
+        encoded_dialog = encoded_dialog["input_ids"]
+        encoded_dialog = flat_list(encoded_dialog)
+
+        input_ids = [
+            self.bos_token_id,
+            *encoded_knowledge_candidate,
+            *encoded_dialog,
+            self.eos_token_id,
+        ]
+        attention_mask = [1] * len(input_ids)
+
+        return DebertaV3FoCusKnowledgeDatasetSampleDictV1(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            labels=knowledge_candidate_usage,
+            unique_id=unique_id,
+        )

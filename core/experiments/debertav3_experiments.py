@@ -180,7 +180,7 @@ def experiment_3():
     """
     похоже на experiment_1, теперь количество положительных примеров
     равно количеству отрицательных примеров.
-    увеличил количество эпох
+    увеличил количество эпох. увеличил количество batch gradient accumulation.
     """
     parser = ExperimentArgumentParserV1()
     args: TrainArgumentsV1 = parser.args
@@ -193,12 +193,14 @@ def experiment_3():
     lighting_hyperparameters = LightingHyperparametersV1(
         precision=16,
         max_epochs=max_epochs,
+        accumulate_grad_batches=4,
     ).__dict__
 
     hyperparameters = DebertaV3HyperparametersV1(
         lighting_hyperparameters=lighting_hyperparameters,
         train_batch_size=16,
         valid_batch_size=16,
+        experiment_description=experiment_3.__doc__,
     )
     seed_everything(hyperparameters.seed)
 

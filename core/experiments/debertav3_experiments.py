@@ -520,7 +520,7 @@ def experiment_7(doc: str = ""):
     args: TrainArgumentsV1 = parser.args
     is_debug = args.debug_status
 
-    max_epochs = 1
+    max_epochs = 2
     if args.debug_status == 1:
         max_epochs = 1
 
@@ -576,7 +576,7 @@ def experiment_7(doc: str = ""):
     if args.debug_status == 1:
         accelerator = "cpu"
 
-    # ckpt_path = "/home/dimweb/Desktop/deeppavlov/my_focus/focus_knowledge_classification/1is9z2lu/checkpoints/microsoft/deberta-v3-base-epoch=00-valid_loss=0.53.ckpt"  # noqa: E501
+    ckpt_path = "/home/dimweb/Desktop/deeppavlov/my_focus/focus_knowledge_classification/1269dck1/checkpoints/microsoft/deberta-v3-base-epoch=00-valid_loss=0.50.ckpt"  # noqa: E501
 
     trainer = Trainer(
         accelerator=accelerator,
@@ -588,7 +588,7 @@ def experiment_7(doc: str = ""):
     trainer.fit(
         model,
         datamodule=data_module,
-        # ckpt_path=ckpt_path,
+        ckpt_path=ckpt_path,
     )
 
 

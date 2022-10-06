@@ -729,9 +729,21 @@ class BartLMV9(BartForConditionalGeneration):
                     knowledge_sep_vector,
                 )
 
-            knowledge_vector = torch.vstack(knowledge_candidates_feature_vectors)
-            knowledge_logits = self.knowledge_candidates_head(knowledge_vector)
-
+            # knowledge_vector = torch.vstack(knowledge_candidates_feature_vectors)
+            # knowledge_logits = self.knowledge_candidates_head(knowledge_vector)
+            outputs = self.model(input_ids)
+            hidden_states = outputs[0]
+            eos_mask = input_ids.eq(self.config.eos_token_id)  # type: ignore
+            if len(torch.unique_consecutive(eos_mask.sum(1))) > 1:
+                raise ValueError(
+                    "All examples must have the same number of <eos> tokens.",
+                )
+            sentence_representation = hidden_states[eos_mask, :].view(
+                hidden_states.size(0),
+                -1,
+                hidden_states.size(-1),
+            )[:, -1, :]
+            knowledge_logits = self.knowledge_candidates_head(sentence_representation)
             # compute knowledge loss
             if knowledge_answer_index is not None:
                 loss_fct = nn.CrossEntropyLoss()

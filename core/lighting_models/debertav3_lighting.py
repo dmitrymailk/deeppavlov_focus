@@ -90,7 +90,7 @@ class DebertaV3LightningModelV1(LightningModule):
             outputs (DebertaV3OutputV1): model outputs
         """
         logits = outputs.logits
-        predicts = logits.argmax(dim=1)
+        predicts = logits.tolist()
         unique_ids = outputs.unique_ids
         labels = batch["labels"]
         epoch = self.current_epoch
@@ -99,13 +99,10 @@ class DebertaV3LightningModelV1(LightningModule):
             if epoch_key not in self.predictions_results[mode]:
                 self.predictions_results[mode][epoch_key] = defaultdict(list)
             self.predictions_results[mode][epoch_key][unique_id].append(
-                [
-                    pred.item(),
-                    label.item(),
-                ],
+                [pred[1], label.item()],
             )
 
-        task_predicts = predicts.view(-1)
+        task_predicts = logits.argmax(dim=-1).view(-1)
         task_labels = labels.view(-1)
         task_accuracy = self._accuracy(task_predicts, task_labels)
 
@@ -205,12 +202,15 @@ class DebertaV3LightningModelV1(LightningModule):
         correct_answers = 0
         all_samples_ids = self.predictions_results[mode][epoch_key].keys()
         for pred_id in all_samples_ids:
-            is_equal = True
+            predictions = []
+            labels = []
             for pred, label in self.predictions_results[mode][epoch_key][pred_id]:
-                if pred != label:
-                    is_equal = False
-                    break
-            if is_equal:
+                predictions.append(pred)
+                labels.append(label)
+            pred_index = torch.tensor(predictions).argmax().item()
+            true_index = labels.index(1)
+
+            if pred_index == true_index:
                 correct_answers += 1
 
         accuracy = correct_answers / len(all_samples_ids)

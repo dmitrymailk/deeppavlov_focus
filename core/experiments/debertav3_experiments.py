@@ -520,7 +520,7 @@ def experiment_7(doc: str = ""):
     args: TrainArgumentsV1 = parser.args
     is_debug = args.debug_status
 
-    max_epochs = 2
+    max_epochs = 1
     if args.debug_status == 1:
         max_epochs = 1
 

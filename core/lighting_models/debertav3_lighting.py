@@ -208,7 +208,15 @@ class DebertaV3LightningModelV1(LightningModule):
                 predictions.append(pred)
                 labels.append(label)
             pred_index = torch.tensor(predictions).argmax().item()
-            true_index = labels.index(1)
+            if 1 in labels:
+                true_index = labels.index(1)
+            else:
+                print("No true label")
+                print(predictions)
+                print(pred_index)
+                print(labels)
+                print("ERROR" * 1000)
+                true_index = 0
 
             if pred_index == true_index:
                 correct_answers += 1

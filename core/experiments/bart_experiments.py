@@ -609,8 +609,8 @@ def experiment_v10() -> None:
 
     hyperparameters = BartHyperparametersV3(
         lighting_hyperparameters=lighting_hyperparameters,
-        train_batch_size=4,
-        valid_batch_size=4,
+        train_batch_size=2,
+        valid_batch_size=2,
     )
     seed_everything(hyperparameters.seed)
 

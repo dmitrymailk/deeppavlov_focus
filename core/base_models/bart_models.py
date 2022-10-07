@@ -21,6 +21,7 @@ from transformers.models.bart.modeling_bart import (
 
 
 from transformers.models.bart.modeling_bart import shift_tokens_right
+from transformers.models.bart.modeling_bart import BartClassificationHead
 
 
 class BartLMV7(BartForConditionalGeneration):
@@ -1088,10 +1089,11 @@ class BartLMV11(BartForConditionalGeneration):
             hyperparameters.persona_labels_amount,
             bias=False,
         )
-        self.knowledge_classifier = nn.Linear(
+        self.knowledge_classifier = BartClassificationHead(
             config.d_model * 4,
-            hyperparameters.knowledge_labels_amount,
-            bias=False,
+            config.d_model,
+            10,
+            0.1,
         )
 
         # Initialize weights and apply final processing

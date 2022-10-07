@@ -547,7 +547,7 @@ class BartFoCusDatasetSampleV5:
         ]
         knowledge_candidates = self.focus_dataset_sample["knowledge_candidates"]
 
-        # persona
+        # persona -> max_tokens=100
         persona = self.tokenizer.batch_encode_plus(
             persona,
             add_special_tokens=False,
@@ -557,7 +557,7 @@ class BartFoCusDatasetSampleV5:
         persona_ids = persona["input_ids"]
         persona_ids = [[*item, self.sep_token_id] for item in persona_ids]  # type: ignore
 
-        # knowledge_candidates
+        # knowledge_candidates -> max_tokens=1000
         knowledge_candidates = self.tokenizer.batch_encode_plus(
             knowledge_candidates,
             add_special_tokens=False,
@@ -569,7 +569,7 @@ class BartFoCusDatasetSampleV5:
             [*item, self.sep_token_id] for item in knowledge_candidates_ids  # type: ignore
         ]
 
-        # query
+        # query max_tokens=80
         query = dialog[-2]
         query = self.tokenizer.batch_encode_plus(
             [query],
@@ -578,7 +578,7 @@ class BartFoCusDatasetSampleV5:
             max_length=max_dialog_history_tokens,
         )
         query_ids = query["input_ids"]
-        # response
+        # response max_tokens=80
         response = dialog[-1]
         response = self.tokenizer.batch_encode_plus(
             [response],
@@ -597,8 +597,10 @@ class BartFoCusDatasetSampleV5:
         )
         knowledge_ids = knowledge["input_ids"]
         tf_idf = FoCusTfIdf(corpus=knowledge_ids)
+        # most_similar_knowledge_candidates -> max_tokens=100*5=500
         most_similar_knowledge_candidates = tf_idf.top_similar(
             query=query_ids,  # type: ignore
+            top_k=5,
         )
         most_similar_knowledge_candidates = [
             [*item, self.sep_token_id] for item in most_similar_knowledge_candidates
@@ -612,46 +614,46 @@ class BartFoCusDatasetSampleV5:
 
         # [BOS][persona][knowledge]<query>[dialog][-2]</query>[EOS]
         input_ids = [
-            self.bos_token_id,
-            *flat_persona,
-            *flat_knowledge,
-            self.query_bos_id,
-            *flat_query,
-            self.query_eos_id,
-            self.eos_token_id,
+            self.bos_token_id,  # 1
+            *flat_persona,  # 100
+            *flat_knowledge,  # 500
+            self.query_bos_id,  # 1
+            *flat_query,  # 80
+            self.query_eos_id,  # 1
+            self.eos_token_id,  # 1
         ]
 
         # [BOS]<response>[dialog][-1]</response>[EOS]
         labels = [
-            self.bos_token_id,
-            self.response_bos_id,
-            *flat_responce,
-            self.response_eos_id,
-            self.eos_token_id,
+            self.bos_token_id,  # 1
+            self.response_bos_id,  # 1
+            *flat_responce,  # 80
+            self.response_eos_id,  # 1
+            self.eos_token_id,  # 1
         ]
 
         flat_knowledge = [
-            self.bos_token_id,
-            *flat_knowledge,
-            self.eos_token_id,
+            self.bos_token_id,  # 1
+            *flat_knowledge,  # 500
+            self.eos_token_id,  # 1
         ]
 
         flat_persona = [
-            self.bos_token_id,
-            *flat_persona,
-            self.eos_token_id,
+            self.bos_token_id,  # 1
+            *flat_persona,  # 100
+            self.eos_token_id,  # 1
         ]
 
         flat_query = [
-            self.bos_token_id,
-            *flat_query,
-            self.eos_token_id,
+            self.bos_token_id,  # 1
+            *flat_query,  # 80
+            self.eos_token_id,  # 1
         ]
 
         flat_knowledge_candidates = [
-            self.bos_token_id,
-            *flat_knowledge_candidates,
-            self.eos_token_id,
+            self.bos_token_id,  # 1
+            *flat_knowledge_candidates,  # 500
+            self.eos_token_id,  # 1
         ]
 
         attention_mask = [1] * len(input_ids)

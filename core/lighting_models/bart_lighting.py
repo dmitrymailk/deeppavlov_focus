@@ -2,6 +2,7 @@ from core.base_models.bart_models import (
     # BartLMV2Outputs,
     # BartLMV5,
     BartLMV10,
+    BartLMV11,
     BartLMV7,
     BartLMV8,
     BartLMV9,
@@ -253,7 +254,7 @@ class BARTLightningModelV3(BARTLightningModelV2):
         self,
         hyperparameters: BartHyperparametersV3,
         tokenizer: BartFoCusTokenizerV2,
-        base_model: BartLMV7 | BartLMV8 | BartLMV9 | BartLMV10,
+        base_model: BartLMV7 | BartLMV8 | BartLMV9 | BartLMV10 | BartLMV11,
         is_training: bool = False,
     ) -> None:
         super().__init__(

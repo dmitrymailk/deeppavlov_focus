@@ -7,6 +7,7 @@ class BartHyperparametersV3:
     dialog_history_length: int = 1
     context_length: int = 1
     knowledge_length: int = 1
+    knowledge_examples: int = 5
     # examples lengths
     max_persona_tokens: int = 20
     max_dialog_history_tokens: int = 80

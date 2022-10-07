@@ -1,5 +1,6 @@
 from core.base_models.bart_models import (  # noqa: F401
     BartLMV10,
+    BartLMV11,
     BartLMV7,
     BartLMV8,
     BartLMV9,
@@ -553,6 +554,80 @@ def experiment_v9() -> None:
         debug_status=is_debug,
     )
     base_model = BartLMV10(
+        config=BartConfig.from_pretrained(
+            hyperparameters.model_name,
+        ),  # type: ignore
+        hyperparameters=hyperparameters,
+        tokenizer=tokenizer,  # type: ignore
+    )
+    model = BARTLightningModelV3(
+        hyperparameters=hyperparameters,
+        tokenizer=tokenizer,  # type: ignore
+        is_training=True,
+        base_model=base_model,
+    )
+
+    wandb_logger = WandbLoggerV1(
+        hyperparameters=hyperparameters,
+        is_debug=True,
+    )
+
+    checkpoint_callback = ModelCheckpoint(
+        save_top_k=1,
+        monitor="valid_loss",
+        mode="min",
+        filename=f"{hyperparameters.model_name}" + "-{epoch:02d}-{valid_loss:.2f}",
+    )
+
+    accelerator = "gpu"
+    if args.debug_status == 1:
+        accelerator = "cpu"
+
+    trainer = Trainer(
+        accelerator=accelerator,
+        logger=wandb_logger.logger,
+        callbacks=[checkpoint_callback],
+        **lighting_hyperparameters,
+    )
+
+    trainer.fit(model, datamodule=data_module)
+
+
+def experiment_v10() -> None:
+    """
+    похож на experiment_v9
+    только теперь я увеличил контекст знаний из базы
+    и теперь обучаю только классификатор на knowledge_candidates
+    """
+    parser = ExperimentArgumentParserV1()
+    args: TrainArgumentsV1 = parser.args
+
+    lighting_hyperparameters = LightingHyperparametersV1(
+        precision=16,
+        max_epochs=2,
+    ).__dict__
+
+    hyperparameters = BartHyperparametersV3(
+        lighting_hyperparameters=lighting_hyperparameters,
+        train_batch_size=4,
+        valid_batch_size=4,
+    )
+    seed_everything(hyperparameters.seed)
+
+    tokenizer = BartFoCusTokenizerV2.from_pretrained(
+        hyperparameters.model_name,
+        hyperparameters=hyperparameters,
+    )
+    is_debug = args.debug_status
+
+    data_module = FoCusLightningDataModuleV5(
+        train_path_dataset="./datasets/FoCus/train_focus.json",
+        valid_path_dataset="./datasets/FoCus/valid_focus.json",
+        hyperparameters=hyperparameters,
+        tokenizer=tokenizer,  # type: ignore
+        debug_status=is_debug,
+    )
+    base_model = BartLMV11(
         config=BartConfig.from_pretrained(
             hyperparameters.model_name,
         ),  # type: ignore

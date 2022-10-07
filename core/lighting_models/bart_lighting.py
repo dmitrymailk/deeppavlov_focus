@@ -1,6 +1,7 @@
 from core.base_models.bart_models import (
     # BartLMV2Outputs,
     # BartLMV5,
+    BartLMV10,
     BartLMV7,
     BartLMV8,
     BartLMV9,
@@ -8,6 +9,7 @@ from core.base_models.bart_models import (
 from core.base_models.model_outputs.bart_outputs import BartOutputV1
 from core.dataloaders.focus.lighting.bart_lighting_dataloaders import (
     FoCusLightningDataModuleV2DictV1,
+    FoCusLightningDataModuleV5DictV1,
 )
 from core.hyperparameters.bart_hyperparameters import (
     BartHyperparametersV3,
@@ -18,7 +20,6 @@ from core.utils import TextEvaluator
 from pytorch_lightning import LightningModule
 
 import torch
-from torch.nn.functional import sigmoid
 
 
 from transformers.optimization import get_linear_schedule_with_warmup
@@ -67,12 +68,12 @@ class BARTLightningModelV2(LightningModule):
         persona_loss = outputs.persona_loss
         knowledge_loss = outputs.knowledge_loss
 
-        persona_accuracy = self._compute_persona_accuracy(
+        persona_accuracy = self.compute_persona_accuracy(
             outputs=outputs,
             batch=batch,
         )
 
-        knowledge_accuracy = self._compute_knowledge_accuracy(
+        knowledge_accuracy = self.compute_knowledge_accuracy(
             outputs=outputs,
             batch=batch,
         )
@@ -109,21 +110,21 @@ class BARTLightningModelV2(LightningModule):
 
         return loss
 
-    def _accuracy(self, preds: torch.Tensor, targets: torch.Tensor) -> float:
+    def accuracy(self, preds: torch.Tensor, targets: torch.Tensor) -> float:
         return (preds == targets).float().mean().cpu().item()
 
-    def _compute_persona_accuracy(
+    def compute_persona_accuracy(
         self,
         outputs: BartOutputV1,
         batch: FoCusLightningDataModuleV2DictV1,
     ) -> float:
         logits = outputs.persona_logits
         targets = batch["persona_grounding"]
-        preds = (sigmoid(logits) > 0.5).int().view(-1)
+        preds = (torch.sigmoid(logits) > 0.5).int().view(-1)
         targets = targets.view(-1)
-        return self._accuracy(preds, targets)
+        return self.accuracy(preds, targets)
 
-    def _compute_knowledge_accuracy(
+    def compute_knowledge_accuracy(
         self,
         outputs: BartOutputV1,
         batch: FoCusLightningDataModuleV2DictV1,
@@ -132,7 +133,7 @@ class BARTLightningModelV2(LightningModule):
         targets = batch["knowledge_answer_index"]
         preds = logits.argmax(dim=1).view(-1)
         targets = targets.view(-1)
-        return self._accuracy(preds, targets)
+        return self.accuracy(preds, targets)
 
     def validation_step(self, batch, batch_idx: int):
 
@@ -143,12 +144,12 @@ class BARTLightningModelV2(LightningModule):
         persona_loss = outputs.persona_loss
         knowledge_loss = outputs.knowledge_loss
 
-        persona_accuracy = self._compute_persona_accuracy(
+        persona_accuracy = self.compute_persona_accuracy(
             outputs=outputs,
             batch=batch,
         )
 
-        knowledge_accuracy = self._compute_knowledge_accuracy(
+        knowledge_accuracy = self.compute_knowledge_accuracy(
             outputs=outputs,
             batch=batch,
         )
@@ -245,3 +246,30 @@ class BARTLightningModelV2(LightningModule):
         scheduler = {"scheduler": scheduler, "interval": "step", "frequency": 1}
 
         return [optimizer], [scheduler]
+
+
+class BARTLightningModelV3(BARTLightningModelV2):
+    def __init__(
+        self,
+        hyperparameters: BartHyperparametersV3,
+        tokenizer: BartFoCusTokenizerV2,
+        base_model: BartLMV7 | BartLMV8 | BartLMV9 | BartLMV10,
+        is_training: bool = False,
+    ) -> None:
+        super().__init__(
+            hyperparameters=hyperparameters,
+            tokenizer=tokenizer,
+            base_model=base_model,  # type: ignore
+            is_training=is_training,
+        )
+
+    def compute_knowledge_accuracy(
+        self,
+        outputs: BartOutputV1,
+        batch: FoCusLightningDataModuleV5DictV1,
+    ) -> float:
+        logits = outputs.knowledge_logits
+        targets = batch["knowledge_candidates_answer_index"]
+        preds = logits.argmax(dim=1).view(-1)
+        targets = targets.view(-1)
+        return self.accuracy(preds, targets)

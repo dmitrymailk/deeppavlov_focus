@@ -6,6 +6,8 @@ from core.dataloaders.focus.focus_dataloader import FoCusDatasetV1
 from core.dataloaders.focus.models.bart_dataloaders import (
     BartFoCusDatasetSampleDictV3,
     BartFoCusDatasetSampleDictV4,
+    BartFoCusDatasetSampleDictV5,
+    BartFoCusDatasetSampleV5,
     PytorchFoCusDatasetV3,
     PytorchFoCusDatasetV4,
 )
@@ -16,6 +18,8 @@ from pytorch_lightning import LightningDataModule
 
 import torch
 from torch.utils.data import DataLoader
+
+from core.utils import PytorchDatasetFactory
 
 
 class FoCusLightningDataModuleV2DictV1(TypedDict):
@@ -42,6 +46,27 @@ class FoCusLightningDataModuleV3DictV1(TypedDict):
     query_bos_index: torch.Tensor
     bos_index: torch.Tensor
     eos_index: torch.Tensor
+
+
+class FoCusLightningDataModuleV5DictV1(TypedDict):
+    input_ids: torch.Tensor
+    attention_mask: torch.Tensor
+
+    labels: torch.Tensor
+    persona_grounding: torch.Tensor
+    knowledge_candidates_answer_index: torch.Tensor
+
+    persona_ids: torch.Tensor
+    persona_attention_mask: torch.Tensor
+
+    knowledge_ids: torch.Tensor
+    knowledge_attention_mask: torch.Tensor
+
+    knowledge_candidates_ids: torch.Tensor
+    knowledge_candidates_attention_mask: torch.Tensor
+
+    query_ids: torch.Tensor
+    query_attention_mask: torch.Tensor
 
 
 class FoCusLightningDataModuleV4(LightningDataModule):
@@ -321,4 +346,136 @@ class FoCusLightningDataModuleV3(LightningDataModule):
             query_bos_index=torch.tensor(batch_query_bos_index),
             bos_index=torch.tensor(batch_bos_index),
             eos_index=torch.tensor(batch_eos_index),
+        )
+
+
+class FoCusLightningDataModuleV5(LightningDataModule):
+    def __init__(
+        self,
+        train_path_dataset: str,
+        valid_path_dataset: str,
+        hyperparameters: BartHyperparametersV3,
+        tokenizer: BartFoCusTokenizerV2,
+        debug_status: int = 0,
+    ) -> None:
+        super().__init__()
+
+        self.train_path_dataset = train_path_dataset
+        self.valid_path_dataset = valid_path_dataset
+
+        self.hyperparameters = hyperparameters
+        self.tokenizer = tokenizer
+
+        self.debug_status = debug_status
+
+    def setup(self, stage: Optional[str] = None):
+        train_dataset = FoCusDatasetV1(input_dataset_path=self.train_path_dataset)
+        valid_dataset = FoCusDatasetV1(input_dataset_path=self.valid_path_dataset)
+
+        if self.debug_status == 1:
+            train_dataset = train_dataset[:2]  # type: ignore
+            valid_dataset = valid_dataset[:2]  # type: ignore
+        elif self.debug_status == 2:
+            train_dataset = train_dataset[:15000]  # type: ignore
+            valid_dataset = valid_dataset  # type: ignore
+
+        self.train_dataset = PytorchDatasetFactory(
+            dataset=train_dataset,
+            tokenizer=self.tokenizer,
+            dataset_sample_class=BartFoCusDatasetSampleV5,
+            hyperparameters=self.hyperparameters,
+        )
+
+        self.valid_dataset = PytorchDatasetFactory(
+            dataset=valid_dataset,
+            tokenizer=self.tokenizer,
+            dataset_sample_class=BartFoCusDatasetSampleV5,
+            hyperparameters=self.hyperparameters,
+        )
+
+    def train_dataloader(self) -> DataLoader:
+        return DataLoader(
+            self.train_dataset,  # type: ignore
+            batch_size=self.hyperparameters.train_batch_size,
+            shuffle=True,
+            num_workers=os.cpu_count(),  # type: ignore
+            collate_fn=self.collate_fn,
+        )
+
+    def val_dataloader(self) -> DataLoader:
+        return DataLoader(
+            self.valid_dataset,  # type: ignore
+            batch_size=self.hyperparameters.valid_batch_size,
+            shuffle=False,
+            num_workers=os.cpu_count(),  # type: ignore
+            collate_fn=self.collate_fn,
+        )
+
+    def pad_to_max(self, array, max_len, pad_token_id):
+        return array + [pad_token_id] * (max_len - len(array))
+
+    def collate_fn(
+        self,
+        batch: List[BartFoCusDatasetSampleDictV5],
+    ) -> FoCusLightningDataModuleV5DictV1:
+        label_pad_keys = [
+            "input_ids",
+            "labels",
+            "persona_ids",
+            "knowledge_ids",
+            "knowledge_candidates_ids",
+            "query_ids",
+        ]
+
+        attention_pad_keys = [
+            "attention_mask",
+            "persona_attention_mask",
+            "knowledge_attention_mask",
+            "knowledge_candidates_attention_mask",
+            "query_attention_mask",
+        ]
+
+        label_max_lens = []
+        attention_max_lens = []
+
+        for pad_key in label_pad_keys:
+            max_len = max([len(item[pad_key]) for item in batch])
+            label_max_lens.append(max_len)
+
+        for pad_key in attention_pad_keys:
+            max_len = max([len(item[pad_key]) for item in batch])
+            attention_max_lens.append(max_len)
+
+        # padd all the arrays
+        for i, pad_key in enumerate(label_pad_keys):
+            max_len = label_max_lens[i]
+            for item in batch:
+                item[pad_key] = self.pad_to_max(
+                    item[pad_key],
+                    max_len,
+                    self.tokenizer.pad_token_id,
+                )
+
+        for i, pad_key in enumerate(attention_pad_keys):
+            max_len = attention_max_lens[i]
+            for item in batch:
+                item[pad_key] = self.pad_to_max(
+                    item[pad_key],
+                    max_len,
+                    0,
+                )
+
+        batch_keys = batch[0].keys()
+        batch_dict = {key: [] for key in batch_keys}
+
+        for item in batch:
+            for key in batch_keys:
+                batch_dict[key].append(item[key])
+
+        # convert to tensors
+        for key in batch_keys:
+            batch_dict[key] = torch.tensor(batch_dict[key])  # type: ignore
+
+        return FoCusLightningDataModuleV5DictV1(
+            **batch_dict,  # type: ignore
         )

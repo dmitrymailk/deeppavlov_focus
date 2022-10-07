@@ -1,4 +1,5 @@
 from core.base_models.bart_models import (  # noqa: F401
+    BartLMV10,
     BartLMV7,
     BartLMV8,
     BartLMV9,
@@ -6,6 +7,7 @@ from core.base_models.bart_models import (  # noqa: F401
 from core.dataloaders.focus.lighting.bart_lighting_dataloaders import (
     FoCusLightningDataModuleV3,
     FoCusLightningDataModuleV4,
+    FoCusLightningDataModuleV5,
 )
 from core.hyperparameters.bart_hyperparameters import (
     BartHyperparametersV3,
@@ -13,6 +15,7 @@ from core.hyperparameters.bart_hyperparameters import (
 from core.hyperparameters.lighting_hyperparameters import LightingHyperparametersV1
 from core.lighting_models.bart_lighting import (
     BARTLightningModelV2,
+    BARTLightningModelV3,
 )
 from core.loggers.wandb_logger import WandbLoggerV1
 from core.tokenizers.bart_tokenizers import BartFoCusTokenizerV2
@@ -454,6 +457,107 @@ def experiment_v8() -> None:
         tokenizer=tokenizer,  # type: ignore
     )
     model = BARTLightningModelV2(
+        hyperparameters=hyperparameters,
+        tokenizer=tokenizer,  # type: ignore
+        is_training=True,
+        base_model=base_model,
+    )
+
+    wandb_logger = WandbLoggerV1(
+        hyperparameters=hyperparameters,
+        is_debug=True,
+    )
+
+    checkpoint_callback = ModelCheckpoint(
+        save_top_k=1,
+        monitor="valid_loss",
+        mode="min",
+        filename=f"{hyperparameters.model_name}" + "-{epoch:02d}-{valid_loss:.2f}",
+    )
+
+    accelerator = "gpu"
+    if args.debug_status == 1:
+        accelerator = "cpu"
+
+    trainer = Trainer(
+        accelerator=accelerator,
+        logger=wandb_logger.logger,
+        callbacks=[checkpoint_callback],
+        **lighting_hyperparameters,
+    )
+
+    trainer.fit(model, datamodule=data_module)
+
+
+def experiment_v9() -> None:
+    """
+    input_ids (List[int]):
+        [BOS][persona][[knowledge]<query>[dialog][-2]</query>[EOS]
+        persona - это сконкатенированная персона
+        knowledge - наиболее похожее предложение из базы знаний
+            на query
+        query - это вопрос, который задал пользователь
+
+    labels (List[int]):
+        [BOS]<response>[dialog][-1]</response>[EOS]
+
+    knowledge_candidate_ids (List[int]):
+        [BOS][knowledge_candidate][EOS]
+
+    knowledge_ids (List[int]):
+        [BOS][knowledge][EOS]
+
+    persona_ids (List[int]):
+        [BOS][persona][EOS]
+
+    классификацию knowledge_candidates на основе:
+        - [EOS] из knowledge_candidates
+        - [EOS] из knowledge
+        - [EOS] из persona
+        - [EOS] из query
+
+    классификацию persona на основе:
+        - [EOS] из knowledge
+        - [EOS] из persona
+        - [EOS] из query
+    теперь я извелекаю фичи не из одной последовательности, а
+    из отдельных.
+    таким образом не нужно составлять длинные последовательности
+    """
+    parser = ExperimentArgumentParserV1()
+    args: TrainArgumentsV1 = parser.args
+
+    lighting_hyperparameters = LightingHyperparametersV1(
+        precision=16,
+        max_epochs=2,
+    ).__dict__
+
+    hyperparameters = BartHyperparametersV3(
+        lighting_hyperparameters=lighting_hyperparameters,
+    )
+    seed_everything(hyperparameters.seed)
+
+    tokenizer = BartFoCusTokenizerV2.from_pretrained(
+        hyperparameters.model_name,
+        hyperparameters=hyperparameters,
+    )
+    is_debug = args.debug_status
+
+    data_module = FoCusLightningDataModuleV5(
+        train_path_dataset="./datasets/FoCus/train_focus.json",
+        valid_path_dataset="./datasets/FoCus/valid_focus.json",
+        hyperparameters=hyperparameters,
+        tokenizer=tokenizer,  # type: ignore
+        debug_status=is_debug,
+    )
+    base_model = BartLMV10(
+        config=BartConfig.from_pretrained(
+            hyperparameters.model_name,
+        ),  # type: ignore
+        hyperparameters=hyperparameters,
+        tokenizer=tokenizer,  # type: ignore
+    )
+    model = BARTLightningModelV3(
         hyperparameters=hyperparameters,
         tokenizer=tokenizer,  # type: ignore
         is_training=True,

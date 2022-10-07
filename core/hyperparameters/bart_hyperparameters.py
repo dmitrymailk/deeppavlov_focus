@@ -10,7 +10,7 @@ class BartHyperparametersV3:
     # examples lengths
     max_persona_tokens: int = 20
     max_dialog_history_tokens: int = 80
-    max_knowledge_tokens: int = 420
+    max_knowledge_tokens: int = 100
     max_knowledge_candidates_tokens: int = 250
     max_full_persona_tokens: int = 5 * 20
     max_full_dialog_history_tokens: int = 2 * 80

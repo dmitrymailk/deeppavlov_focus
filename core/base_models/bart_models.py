@@ -1256,7 +1256,7 @@ class BartLMV11(BartForConditionalGeneration):
                     knowledge_logits,
                     knowledge_candidates_answer_index.view(-1),
                 )
-                loss += knowledge_loss
+                loss = knowledge_loss
 
         return BartOutputV1(
             # default fields

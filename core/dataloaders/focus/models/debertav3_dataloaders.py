@@ -4,6 +4,7 @@ from core.dataloaders.focus.focus_dataloader import (
     FoCusDatasetKnowledgeSampleDictV1,
     FoCusDatasetKnowledgeV1,
     FoCusDatasetKnowledgeV2,
+    FoCusDatasetPersonaSampleDictV1,
 )
 from core.hyperparameters.debertav3_hyperparameters import DebertaV3HyperparametersV1
 from core.utils import flat_list
@@ -19,6 +20,13 @@ class DebertaV3FoCusKnowledgeDatasetSampleDictV1(TypedDict):
     attention_mask: List[int]
     labels: int
     unique_id: str
+
+
+class DebertaV3FoCusPersonaDatasetSampleDictV1(TypedDict):
+    input_ids: List[List[int]]
+    attention_mask: List[List[int]]
+    labels: List[int]
+    max_len: int
 
 
 class DebertaV3FoCusKnowledgeDatasetSampleV1:
@@ -334,4 +342,92 @@ class DebertaV3FoCusKnowledgeDatasetSampleV4:
             attention_mask=attention_mask,
             labels=knowledge_candidate_usage,
             unique_id=unique_id,
+        )
+
+
+class DebertaV3FoCusPersonaDatasetSampleV1:
+    def __init__(
+        self,
+        dataset_sample: FoCusDatasetPersonaSampleDictV1,
+        tokenizer: DebertaV2Tokenizer,
+        h_params: DebertaV3HyperparametersV1,
+    ) -> None:
+        self.dataset_sample = dataset_sample
+        self.tokenizer: DebertaV2Tokenizer = tokenizer
+        self.h_params = h_params
+
+        self.bos_token_id = self.tokenizer.bos_token_id  # type: ignore
+        self.eos_token_id = self.tokenizer.eos_token_id  # type: ignore
+
+    def get_dict(self) -> DebertaV3FoCusPersonaDatasetSampleDictV1:
+        """
+        Returns:
+            input_ids (List[List[int]]):
+                List[int]
+                    [BOS][persona_sentence][used_knowledge][query][EOS]
+                    [query] - это последний вопрос от пользователя
+                    [used_knowledge] - это знание которое точно использовалось для
+                        генерации ответа
+                    [persona_sentence] - это одно из 5 предложений персоны
+            labels (List[int]): 0 или 1. ложь или правда. использовалась ли персона
+                для ответа или нет.
+        """
+        max_dialog_history_tokens = self.h_params.max_dialog_history_tokens
+        max_knowledge_candidates_tokens = self.h_params.max_knowledge_candidates_tokens
+        max_persona_tokens = self.h_params.max_persona_tokens
+
+        # persona: List[str]
+        # used_knowledge: str
+        # dialog: List[str]
+        # persona_grounding: List[int]
+
+        used_knowledge = self.dataset_sample["used_knowledge"]
+        dialog = self.dataset_sample["dialog"]
+        persona = self.dataset_sample["persona"]
+        persona_grounding = self.dataset_sample["persona_grounding"]
+
+        encoded_persona = self.tokenizer.batch_encode_plus(  # type: ignore
+            persona,
+            add_special_tokens=False,
+            truncation=True,
+            max_length=max_persona_tokens,
+        )
+
+        encoded_knowledge = self.tokenizer.batch_encode_plus(  # type: ignore
+            [used_knowledge],
+            add_special_tokens=False,
+            truncation=True,
+            max_length=max_knowledge_candidates_tokens,
+        )
+        encoded_knowledge = flat_list(encoded_knowledge["input_ids"])
+
+        encoded_dialog = self.tokenizer.batch_encode_plus(  # type: ignore
+            [dialog[-2]],
+            add_special_tokens=False,
+            truncation=True,
+            max_length=max_dialog_history_tokens,
+        )
+        encoded_dialog = flat_list(encoded_dialog["input_ids"])
+
+        concatenated_persona = []
+        attention_mask = []
+        max_len = 0
+        for persona_sent in encoded_persona["input_ids"]:
+            new_persona_sent = [
+                self.bos_token_id,
+                *persona_sent,
+                *encoded_knowledge,
+                *encoded_dialog,
+                self.eos_token_id,
+            ]
+            max_len = max(max_len, len(new_persona_sent))
+            mask = len(new_persona_sent) * [1]
+            concatenated_persona.append(new_persona_sent)
+            attention_mask.append(mask)
+
+        return DebertaV3FoCusPersonaDatasetSampleDictV1(
+            input_ids=concatenated_persona,
+            labels=persona_grounding,
+            attention_mask=attention_mask,
+            max_len=max_len,
         )

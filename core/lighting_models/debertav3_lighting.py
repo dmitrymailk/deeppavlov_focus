@@ -4,6 +4,7 @@ from typing import Dict
 from core.base_models.debertav3_models import (
     DebertaV3ForClassificationV1,
     DebertaV3ForClassificationV2,
+    DebertaV3PersonaClassificationV1,
 )
 from core.base_models.model_outputs.debertav3_outputs import DebertaV3OutputV1
 from core.hyperparameters.debertav3_hyperparameters import DebertaV3HyperparametersV1
@@ -223,3 +224,133 @@ class DebertaV3LightningModelV1(LightningModule):
 
         accuracy = correct_answers / len(all_samples_ids)
         return accuracy
+
+
+class DebertaV3PersonaLightningModelV1(LightningModule):
+    def __init__(
+        self,
+        hyperparameters: DebertaV3HyperparametersV1,
+        tokenizer: DebertaV2Tokenizer,
+        base_model: DebertaV3PersonaClassificationV1,
+    ) -> None:
+        super().__init__()
+        self.hparams.update(hyperparameters.__dict__)
+        self.save_hyperparameters(ignore=["base_model"])
+
+        self.hyperparameters = hyperparameters
+        self.tokenizer = tokenizer
+
+        self.model = base_model
+
+    def forward(
+        self,
+        **kwargs,
+    ) -> DebertaV3OutputV1:
+        return self.model(**kwargs)
+
+    def training_step(
+        self,
+        batch,
+        batch_idx: int,
+    ):
+
+        outputs: DebertaV3OutputV1 = self.model.forward(
+            **batch,
+        )
+
+        loss = outputs.loss
+
+        accuracy = self.compute_accuracy(
+            batch,
+            outputs,
+        )
+
+        self.log(
+            "train_loss",
+            loss,  # type: ignore
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+        )
+
+        self.log(
+            "train_accuracy",
+            accuracy,
+            on_step=True,
+            on_epoch=True,
+        )
+
+        return loss
+
+    def _accuracy(self, preds: torch.Tensor, targets: torch.Tensor) -> float:
+        return (preds == targets).float().mean().cpu().item()
+
+    def validation_step(self, batch, batch_idx: int):
+
+        outputs = self.model.forward(**batch)
+        loss = outputs.loss
+        accuracy = self.compute_accuracy(
+            batch,
+            outputs,
+        )
+        self.log(
+            "valid_loss",
+            loss,  # type: ignore
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+        )
+
+        self.log(
+            "valid_accuracy",
+            accuracy,
+            on_step=True,
+            on_epoch=True,
+        )
+
+    def compute_accuracy(self, batch, outputs):
+        logits = outputs.logits
+        labels = batch["labels"]
+        task_predicts = logits.argmax(dim=-1).view(-1)
+        task_labels = labels.view(-1)
+        task_accuracy = self._accuracy(task_predicts, task_labels)
+        return task_accuracy
+
+    def configure_optimizers(self):
+        model = self.model
+        no_decay = ["bias", "LayerNorm.weight"]
+        optimizer_grouped_parameters = [
+            {
+                "params": [
+                    p
+                    for n, p in model.named_parameters()
+                    if not any(nd in n for nd in no_decay)
+                ],
+                "weight_decay": self.hyperparameters.weight_decay,
+            },
+            {
+                "params": [
+                    p
+                    for n, p in model.named_parameters()
+                    if any(nd in n for nd in no_decay)
+                ],
+                "weight_decay": self.hyperparameters.weight_decay,
+            },
+        ]
+
+        optimizer = torch.optim.AdamW(
+            optimizer_grouped_parameters,
+            lr=self.hyperparameters.learning_rate,
+            eps=self.hyperparameters.adam_epsilon,
+        )
+
+        scheduler = get_linear_schedule_with_warmup(
+            optimizer,
+            num_warmup_steps=self.hyperparameters.warmup_steps,
+            num_training_steps=self.trainer.estimated_stepping_batches,
+        )
+        scheduler = {"scheduler": scheduler, "interval": "step", "frequency": 1}
+
+        return [optimizer], [scheduler]

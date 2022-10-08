@@ -46,7 +46,7 @@ class TfIdf:
 
         self.vectorizer = TfidfVectorizer(
             # token_pattern is number
-            token_pattern=r"(?u)\b\d+\b",
+            token_pattern=r"\b\d+\b",
         )
         new_corpus = self.__encode_sentences(corpus)
 
@@ -63,6 +63,7 @@ class TfIdf:
         self,
         query: List[List[int]] = None,
         top_k: int = 1,
+        return_indices: bool = False,
     ) -> List[List[int]]:
         query = self.__encode_sentences(query)  # type: ignore
         query = self.vectorizer.transform(query)
@@ -71,9 +72,11 @@ class TfIdf:
         similarity = similarity.flatten()
         similarity = np.argsort(similarity)[::-1][:top_k]
         similarity = similarity.tolist()
+        if not return_indices:
+            similar_samples = [self.corpus[i] for i in similarity]
+            return similar_samples
 
-        similar_samples = [self.corpus[i] for i in similarity]
-        return similar_samples
+        return similarity
 
 
 class FoCusTfIdf(TfIdf):
@@ -89,6 +92,7 @@ class FoCusTfIdf(TfIdf):
         self,
         query: List[List[int]] = None,
         top_k: int = 1,
+        return_indices: bool = False,
     ) -> List[List[int]]:
         query_str = str(query)
 
@@ -98,6 +102,7 @@ class FoCusTfIdf(TfIdf):
         similar_samples = super().top_similar(
             query=query,
             top_k=top_k,
+            return_indices=return_indices,
         )
         self.cached_similar[query_str] = similar_samples
 

@@ -882,7 +882,7 @@ def experiment_11(doc: str = ""):
 
     hyperparameters = DebertaV3HyperparametersV1(
         lighting_hyperparameters=lighting_hyperparameters,
-        train_batch_size=4,
+        train_batch_size=1,
         valid_batch_size=4,
         # max_dialog_history_tokens=70,
         # max_knowledge_candidates_tokens=220,

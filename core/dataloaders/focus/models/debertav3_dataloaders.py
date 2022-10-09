@@ -484,7 +484,7 @@ class DebertaV3FoCusPersonaDatasetSampleV2:
         encoded_persona = self.tokenizer.batch_encode_plus(  # type: ignore
             [persona],
             add_special_tokens=False,
-            truncation=True,
+            # truncation=True,
         )
         encoded_persona = flat_list(encoded_persona["input_ids"])
 

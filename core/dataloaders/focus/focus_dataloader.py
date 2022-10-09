@@ -291,10 +291,10 @@ class FoCusDatasetKnowledgeV2:
 
 class FoCusDatasetPersonaSampleDictV1(TypedDict):
     """
-    persona: List[str] предложение из персоны
+    persona: List[str] предложения из персоны
     knowledge_candidate: str кандидат который использовался для генерации ответа
     dialog: List[int] пары диалогов истории
-    persona_grounding: Listp[int] 0 или 1 показыват использовалась ли персона
+    persona_grounding: List[int] 0 или 1 показыват использовалась ли персона
         в генерации ответа
     """
 
@@ -302,6 +302,22 @@ class FoCusDatasetPersonaSampleDictV1(TypedDict):
     used_knowledge: str
     dialog: List[str]
     persona_grounding: List[int]
+
+
+class FoCusDatasetPersonaSampleDictV2(TypedDict):
+    """
+    persona: str предложение из персоны
+    knowledge_candidate: str кандидат который использовался для генерации ответа
+    dialog: List[int] пары диалогов истории
+    persona_grounding: int 0 или 1 показыват использовалась ли персона
+        в генерации ответа
+    """
+
+    persona: str
+    used_knowledge: str
+    dialog: List[str]
+    persona_grounding: int
+    unique_id: str
 
 
 class FoCusDatasetPersonaV1:
@@ -358,4 +374,95 @@ class FoCusDatasetPersonaV1:
         return len(self.dataset)
 
     def __getitem__(self, index: int) -> FoCusDatasetPersonaSampleDictV1:
+        return self.dataset[index]
+
+
+class FoCusDatasetPersonaV2:
+    def __init__(
+        self,
+        input_dataset_path: str,
+        is_train: bool,
+    ) -> None:
+        assert input_dataset_path is not None, "input_dataset_path is None"
+
+        self.input_dataset_path: str = input_dataset_path
+        self.dataset: List[FoCusDatasetPersonaSampleDictV2] = []
+        self.is_train = is_train
+        self.__build_dataset()
+
+    def __build_dataset(self) -> None:
+        initial_dataset = self.__read_dataset(self.input_dataset_path)
+        self.dataset = self.__create_initial_dataset(initial_dataset=initial_dataset)
+
+    def __create_initial_dataset(
+        self,
+        initial_dataset: Dict,
+    ) -> List[FoCusDatasetPersonaSampleDictV2]:
+        dataset = []
+        initial_dataset_data = initial_dataset["data"]
+
+        for dialog_set in initial_dataset_data:
+            utterances = dialog_set["utterance"]
+            dialog_id = dialog_set["dialogID"]
+            persona = dialog_set["persona"]
+
+            for utterance in utterances:
+                knowledge_candidates = utterance["knowledge_candidates"]
+                knowledge_answer_index = utterance["knowledge_answer_index"]
+                used_knowledge = knowledge_candidates[knowledge_answer_index]
+                persona_grounding = list(map(int, utterance["persona_grounding"]))
+                dialog_index_key = [
+                    item for item in utterance.keys() if "dialog" in item
+                ][0]
+                dialog = utterance[dialog_index_key]
+                unique_id = f"{dialog_id}_{dialog_index_key}"
+
+                has_positive = False
+                has_negative = False
+                for i, grounding in enumerate(persona_grounding):
+                    if self.is_train:
+                        if has_positive and has_negative:
+                            break
+                        if grounding == 1 and not has_positive:
+                            has_positive = True
+                            sample = FoCusDatasetPersonaSampleDictV2(
+                                persona=persona[i],
+                                used_knowledge=used_knowledge,
+                                dialog=dialog,
+                                persona_grounding=grounding,
+                                unique_id=unique_id,
+                            )
+                            dataset.append(sample)
+
+                        elif grounding == 0 and not has_negative:
+                            has_negative = True
+                            sample = FoCusDatasetPersonaSampleDictV2(
+                                persona=persona[i],
+                                used_knowledge=used_knowledge,
+                                dialog=dialog,
+                                persona_grounding=grounding,
+                                unique_id=unique_id,
+                            )
+                            dataset.append(sample)
+                    else:
+                        sample = FoCusDatasetPersonaSampleDictV2(
+                            persona=persona[i],
+                            used_knowledge=used_knowledge,
+                            dialog=dialog,
+                            persona_grounding=grounding,
+                            unique_id=unique_id,
+                        )
+                        dataset.append(sample)
+
+        return dataset
+
+    def __read_dataset(self, input_path: str) -> Dict:
+        with open(input_path, "r") as f:
+            dataset = json.load(f)
+        return dataset
+
+    def __len__(self) -> int:
+        return len(self.dataset)
+
+    def __getitem__(self, index: int) -> FoCusDatasetPersonaSampleDictV2:
         return self.dataset[index]

@@ -11,7 +11,7 @@ class DebertaV3OutputV1(ModelOutput):
     logits: torch.FloatTensor
     # они нужны чтобы потом посчитать accuracy
     # по изначальному датасету с knowledge_candidates
-    unique_ids: List[int]
+    unique_ids: List[str]
 
 
 class DebertaV3OutputV2(ModelOutput):

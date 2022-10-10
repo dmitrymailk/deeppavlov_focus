@@ -276,3 +276,70 @@ class DebertaV3PersonaClassificationV2(DebertaV2ForSequenceClassification):
             logits=logits,
             unique_ids=unique_ids,
         )
+
+
+class DebertaV3PersonaClassificationV3(DebertaV2ForSequenceClassification):
+    def __init__(self, config: DebertaV2Config, class_weights: torch.Tensor):
+        super().__init__(config)
+
+        num_labels = 2
+        self.num_labels = num_labels
+        self.class_weights = class_weights.to(self.device)
+
+        self.deberta = DebertaV2Model(config)
+        self.pooler = ContextPooler(config)
+        output_dim = self.pooler.output_dim
+
+        self.classifier = nn.Linear(output_dim, num_labels)
+        drop_out = getattr(config, "cls_dropout", None)
+        drop_out = self.config.hidden_dropout_prob if drop_out is None else drop_out
+
+        # Initialize weights and apply final processing
+        self.post_init()
+
+    def forward(
+        self,
+        input_ids: Optional[torch.Tensor] = None,
+        attention_mask: Optional[torch.Tensor] = None,
+        token_type_ids: Optional[torch.Tensor] = None,
+        position_ids: Optional[torch.Tensor] = None,
+        inputs_embeds: Optional[torch.Tensor] = None,
+        labels: Optional[torch.Tensor] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
+        unique_ids: Optional[List[str]] = None,
+        **kwargs,
+    ) -> DebertaV3OutputV1:
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
+
+        input_ids = input_ids.to(self.device)  # type: ignore
+        attention_mask = attention_mask.to(self.device)  # type: ignore
+        labels = labels.to(self.device)  # type: ignore
+
+        outputs = self.deberta(
+            input_ids,
+            token_type_ids=token_type_ids,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+
+        encoder_layer = outputs[0]
+        encoder_layer = self.pooler(encoder_layer)
+        logits = self.classifier(encoder_layer)
+
+        loss = torch.tensor(0.0).to(self.device)
+        if labels is not None:
+            loss_fct = nn.CrossEntropyLoss(weight=self.class_weights.to(self.device))
+            loss = loss_fct(logits, labels)
+
+        return DebertaV3OutputV1(
+            loss=loss,
+            logits=logits,
+        )

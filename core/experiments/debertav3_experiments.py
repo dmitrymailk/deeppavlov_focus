@@ -952,7 +952,7 @@ def experiment_11(doc: str = ""):
 @experiment_decorator
 def experiment_12(doc: str = ""):
     """
-    использую microsoft/deberta-v3-base
+    использую "microsoft/deberta-v3-small"
     бинарная классификация персоны.
     сбалансированный датасет.
     """
@@ -977,7 +977,7 @@ def experiment_12(doc: str = ""):
         # max_dialog_history_tokens=70,
         # max_knowledge_candidates_tokens=220,
         # max_persona_tokens=15,
-        model_name="microsoft/deberta-v3-base",
+        model_name="microsoft/deberta-v3-small",
         experiment_description=doc,
         project_name="focus_persona_classification",
     )

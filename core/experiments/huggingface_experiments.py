@@ -119,15 +119,6 @@ def experiment_2():
         project_name="focus_persona_classification",
     )
 
-    class_weights = torch.tensor([0.38646951059931955, 0.6135304894006804])
-    model = DebertaV3PersonaClassificationV3.from_pretrained(
-        hyperparameters.model_name,
-        config=DebertaV2Config.from_pretrained(
-            hyperparameters.model_name,
-        ),
-        class_weights=class_weights,
-    )
-
     train_dataset = FoCusDatasetPersonaV2(
         input_dataset_path="./datasets/FoCus/train_focus.json",
         is_train=True,
@@ -158,6 +149,32 @@ def experiment_2():
         predictions, labels = eval_pred
         predictions = np.argmax(predictions, axis=-1)
         return accuracy_metric.compute(predictions=predictions, references=labels)
+
+    train_positive = 0
+    train_negative = 0
+    for sample in train_dataset:  # type: ignore
+        if sample["labels"] == 1:
+            train_positive += 1
+        else:
+            train_negative += 1
+
+    print("Train positive: ", train_positive)
+    print("Train negative: ", train_negative)
+    print("Train ratio: ", train_positive / (train_positive + train_negative))
+
+    positive_ratio = train_positive / (train_positive + train_negative)
+    class_weights = [positive_ratio, 1 - positive_ratio]
+    print("Class weights: ", class_weights)
+
+    class_weights = torch.tensor(class_weights)
+
+    model = DebertaV3PersonaClassificationV3.from_pretrained(
+        hyperparameters.model_name,
+        config=DebertaV2Config.from_pretrained(
+            hyperparameters.model_name,
+        ),
+        class_weights=class_weights,
+    )
 
     training_args = TrainingArguments(
         output_dir=f"./results/{model_name}",

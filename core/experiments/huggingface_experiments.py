@@ -121,7 +121,7 @@ def experiment_2():
 
     train_dataset = FoCusDatasetPersonaV2(
         input_dataset_path="./datasets/FoCus/train_focus.json",
-        is_train=True,
+        is_train=False,
     )
 
     valid_dataset = FoCusDatasetPersonaV2(

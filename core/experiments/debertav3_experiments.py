@@ -994,15 +994,23 @@ def experiment_12(doc: str = ""):
         tokenizer=tokenizer,  # type: ignore
         debug_status=debug_status,
     )
-    base_model = DebertaV3PersonaClassificationV2(
+    # base_model = DebertaV3PersonaClassificationV2(
+    #     config=DebertaV2Config.from_pretrained(
+    #         hyperparameters.model_name,
+    #     ),  # type: ignore
+    # )
+
+    base_model = DebertaV3PersonaClassificationV2.from_pretrained(
+        hyperparameters.model_name,
         config=DebertaV2Config.from_pretrained(
             hyperparameters.model_name,
-        ),  # type: ignore
+        ),
     )
+
     model = DebertaV3PersonaLightningModelV2(
         hyperparameters=hyperparameters,
         tokenizer=tokenizer,  # type: ignore
-        base_model=base_model,
+        base_model=base_model,  # type: ignore
     )
 
     wandb_logger = WandbLoggerV2(
@@ -1024,7 +1032,7 @@ def experiment_12(doc: str = ""):
 
     trainer = Trainer(
         accelerator=accelerator,
-        # logger=wandb_logger.logger,
+        logger=wandb_logger.logger,
         callbacks=[checkpoint_callback],
         overfit_batches=0.01,
         **lighting_hyperparameters,

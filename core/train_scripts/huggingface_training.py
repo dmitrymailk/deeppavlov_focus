@@ -75,6 +75,7 @@ if __name__ == "__main__":
         fp16=True,
         evaluation_strategy="steps",
         eval_steps=3000,
+        save_steps=3000,
         do_train=True,
         load_best_model_at_end=True,
     )

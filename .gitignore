@@ -170,3 +170,7 @@ cache
 focus_knowledge_classification
 *.ckpt
 focus_persona_classification
+cache_dir
+outputs
+runs
+results

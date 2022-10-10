@@ -469,6 +469,7 @@ class DebertaV3FoCusPersonaDatasetSampleV2:
         """
         max_dialog_history_tokens = self.h_params.max_dialog_history_tokens
         max_knowledge_candidates_tokens = self.h_params.max_knowledge_candidates_tokens
+        max_persona_tokens = self.h_params.max_persona_tokens
 
         # persona: str
         # used_knowledge: str
@@ -484,7 +485,8 @@ class DebertaV3FoCusPersonaDatasetSampleV2:
         encoded_persona = self.tokenizer.batch_encode_plus(  # type: ignore
             [persona],
             add_special_tokens=False,
-            # truncation=True,
+            truncation=True,
+            max_length=max_persona_tokens,
         )
         encoded_persona = flat_list(encoded_persona["input_ids"])
 

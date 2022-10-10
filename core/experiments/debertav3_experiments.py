@@ -960,7 +960,7 @@ def experiment_12(doc: str = ""):
     args: TrainArgumentsV1 = parser.args
     debug_status = args.debug_status
 
-    max_epochs = 2
+    max_epochs = 100
     if args.debug_status == 1:
         max_epochs = 1
 
@@ -1024,8 +1024,9 @@ def experiment_12(doc: str = ""):
 
     trainer = Trainer(
         accelerator=accelerator,
-        logger=wandb_logger.logger,
+        # logger=wandb_logger.logger,
         callbacks=[checkpoint_callback],
+        overfit_batches=0.01,
         **lighting_hyperparameters,
     )
 

@@ -13,6 +13,7 @@ from transformers import AutoModelForSequenceClassification, Trainer, TrainingAr
 from transformers import AutoTokenizer  # type: ignore
 from transformers import DataCollatorWithPadding  # type: ignore
 
+import time
 
 if __name__ == "__main__":
     model_name = "microsoft/deberta-v3-small"
@@ -64,17 +65,18 @@ if __name__ == "__main__":
     training_args = TrainingArguments(
         output_dir=f"./results/{model_name}",
         learning_rate=2e-5,
-        per_device_train_batch_size=8,
-        per_device_eval_batch_size=8,
+        per_device_train_batch_size=16,
+        per_device_eval_batch_size=16,
         num_train_epochs=4,
-        weight_decay=0.02,
+        weight_decay=0.015,
         logging_steps=10,
         overwrite_output_dir=True,
         run_name=f"huggingface_{model_name}",
         fp16=True,
         evaluation_strategy="steps",
-        eval_steps=1000,
+        eval_steps=3000,
         do_train=True,
+        load_best_model_at_end=True,
     )
 
     trainer = Trainer(
@@ -88,3 +90,6 @@ if __name__ == "__main__":
     )
 
     trainer.train()
+    named_tuple = time.localtime()  # get struct_time
+    time_string = time.strftime("%m/%d/%Y, %H:%M:%S", named_tuple)
+    trainer.save_model(f"./results/{model_name}_{time_string}")

@@ -1034,7 +1034,6 @@ def experiment_12(doc: str = ""):
         accelerator=accelerator,
         logger=wandb_logger.logger,
         callbacks=[checkpoint_callback],
-        overfit_batches=0.01,
         **lighting_hyperparameters,
     )
 

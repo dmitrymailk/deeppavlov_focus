@@ -112,8 +112,8 @@ def experiment_2():
     hyperparameters = DebertaV3HyperparametersV1(
         train_batch_size=16,
         valid_batch_size=16,
-        max_dialog_history_tokens=70,
-        max_knowledge_candidates_tokens=220,
+        max_dialog_history_tokens=80,
+        max_knowledge_candidates_tokens=250,
         max_persona_tokens=20,
         model_name=model_name,
         project_name="focus_persona_classification",
@@ -150,20 +150,22 @@ def experiment_2():
         predictions = np.argmax(predictions, axis=-1)
         return accuracy_metric.compute(predictions=predictions, references=labels)
 
-    train_positive = 0
-    train_negative = 0
-    for sample in train_dataset:  # type: ignore
-        if sample["labels"] == 1:
-            train_positive += 1
-        else:
-            train_negative += 1
+    # train_positive = 0
+    # train_negative = 0
+    # for sample in train_dataset:  # type: ignore
+    #     if sample["labels"] == 1:
+    #         train_positive += 1
+    #     else:
+    #         train_negative += 1
 
-    print("Train positive: ", train_positive)
-    print("Train negative: ", train_negative)
-    print("Train ratio: ", train_positive / (train_positive + train_negative))
+    # print("Train positive: ", train_positive)
+    # print("Train negative: ", train_negative)
+    # print("Train ratio: ", train_positive / (train_positive + train_negative))
 
-    positive_ratio = train_positive / (train_positive + train_negative)
-    class_weights = [positive_ratio, 1 - positive_ratio]
+    # positive_ratio = train_positive / (train_positive + train_negative)
+    # Class weights:  [0.13454188704999148, 0.8654581129500085]
+    # class_weights = [positive_ratio, 1 - positive_ratio]
+    class_weights = [0.1, 0.9]
     print("Class weights: ", class_weights)
 
     class_weights = torch.tensor(class_weights)

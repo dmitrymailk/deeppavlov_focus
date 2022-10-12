@@ -61,7 +61,7 @@ class BartLMV7(BartForConditionalGeneration):
     def forward(
         self,
         # default fields
-        input_ids: torch.LongTensor,
+        input_ids: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
         decoder_input_ids: Optional[torch.LongTensor] = None,
         decoder_attention_mask: Optional[torch.LongTensor] = None,
@@ -125,10 +125,19 @@ class BartLMV7(BartForConditionalGeneration):
         persona_logits = None
         knowledge_logits = None
 
+        if input_ids is not None:
+            input_ids = input_ids.to(self.device)  # type: ignore
+            attention_mask = attention_mask.to(self.device)  # type: ignore
+
         if labels is not None:
 
             use_cache = False
-            if decoder_input_ids is None and decoder_inputs_embeds is None:
+            if (
+                decoder_input_ids is None
+                and decoder_inputs_embeds is None
+                and labels is not None
+            ):
+                labels = labels.to(self.device)  # type: ignore
                 decoder_input_ids = shift_tokens_right(
                     labels,  # type: ignore
                     self.config.pad_token_id,  # type: ignore

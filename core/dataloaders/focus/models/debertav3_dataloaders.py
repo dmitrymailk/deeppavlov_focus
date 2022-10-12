@@ -521,3 +521,85 @@ class DebertaV3FoCusPersonaDatasetSampleV2:
             attention_mask=attention_mask,
             unique_id=self.dataset_sample["unique_id"],
         )
+
+
+class DebertaV3FoCusPersonaTestDatasetSampleDictV1(TypedDict):
+    input_ids: List[int]
+    attention_mask: List[int]
+
+
+class DebertaV3FoCusPersonaTestDatasetSampleDictV2(TypedDict):
+    persona_sentence: str
+    used_knowledge: str
+    query: str
+
+
+class DebertaV3FoCusPersonaTestDatasetSampleV1:
+    def __init__(
+        self,
+        dataset_sample: DebertaV3FoCusPersonaTestDatasetSampleDictV2,
+        tokenizer: DebertaV2Tokenizer,
+        h_params: DebertaV3HyperparametersV1,
+    ) -> None:
+        self.dataset_sample = dataset_sample
+        self.tokenizer: DebertaV2Tokenizer = tokenizer
+        self.h_params = h_params
+
+        self.bos_token_id = self.tokenizer.bos_token_id  # type: ignore
+        self.eos_token_id = self.tokenizer.eos_token_id  # type: ignore
+
+    def get_dict(self) -> DebertaV3FoCusPersonaTestDatasetSampleDictV1:
+        """
+        Returns:
+            input_ids (List[int]):
+                [BOS][persona_sentence][used_knowledge][query][EOS]
+                [query] - это последний вопрос от пользователя
+                [used_knowledge] - это знание которое точно использовалось для
+                    генерации ответа
+                [persona_sentence] - это одно из 5 предложений персоны
+        """
+        max_dialog_history_tokens = self.h_params.max_dialog_history_tokens
+        max_knowledge_candidates_tokens = self.h_params.max_knowledge_candidates_tokens
+        max_persona_tokens = self.h_params.max_persona_tokens
+
+        used_knowledge = self.dataset_sample["used_knowledge"]
+        query = self.dataset_sample["query"]
+        persona_sentence = self.dataset_sample["persona_sentence"]
+
+        encoded_persona = self.tokenizer.batch_encode_plus(  # type: ignore
+            [persona_sentence],
+            add_special_tokens=False,
+            truncation=True,
+            max_length=max_persona_tokens,
+        )
+        encoded_persona = flat_list(encoded_persona["input_ids"])
+
+        encoded_knowledge = self.tokenizer.batch_encode_plus(  # type: ignore
+            [used_knowledge],
+            add_special_tokens=False,
+            truncation=True,
+            max_length=max_knowledge_candidates_tokens,
+        )
+        encoded_knowledge = flat_list(encoded_knowledge["input_ids"])
+
+        encoded_dialog = self.tokenizer.batch_encode_plus(  # type: ignore
+            [query],
+            add_special_tokens=False,
+            truncation=True,
+            max_length=max_dialog_history_tokens,
+        )
+        encoded_dialog = flat_list(encoded_dialog["input_ids"])
+
+        input_ids = [
+            self.bos_token_id,
+            *encoded_persona,
+            *encoded_knowledge,
+            *encoded_dialog,
+            self.eos_token_id,
+        ]
+        attention_mask = len(input_ids) * [1]
+
+        return DebertaV3FoCusPersonaTestDatasetSampleDictV1(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+        )

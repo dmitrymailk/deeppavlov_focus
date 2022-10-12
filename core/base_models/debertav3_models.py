@@ -279,12 +279,17 @@ class DebertaV3PersonaClassificationV2(DebertaV2ForSequenceClassification):
 
 
 class DebertaV3PersonaClassificationV3(DebertaV2ForSequenceClassification):
-    def __init__(self, config: DebertaV2Config, class_weights: torch.Tensor):
+    def __init__(
+        self,
+        config: DebertaV2Config,
+        class_weights: Optional[torch.Tensor] = None,
+    ):
         super().__init__(config)
 
         num_labels = 2
         self.num_labels = num_labels
-        self.class_weights = class_weights.to(self.device)
+        if class_weights is not None:
+            self.class_weights = class_weights.to(self.device)
 
         self.deberta = DebertaV2Model(config)
         self.pooler = ContextPooler(config)
@@ -317,7 +322,8 @@ class DebertaV3PersonaClassificationV3(DebertaV2ForSequenceClassification):
 
         input_ids = input_ids.to(self.device)  # type: ignore
         attention_mask = attention_mask.to(self.device)  # type: ignore
-        labels = labels.to(self.device)  # type: ignore
+        if labels is not None:
+            labels = labels.to(self.device)  # type: ignore
 
         outputs = self.deberta(
             input_ids,
@@ -336,6 +342,7 @@ class DebertaV3PersonaClassificationV3(DebertaV2ForSequenceClassification):
 
         loss = torch.tensor(0.0).to(self.device)
         if labels is not None:
+            assert self.class_weights is not None
             loss_fct = nn.CrossEntropyLoss(weight=self.class_weights.to(self.device))
             loss = loss_fct(logits, labels)
 

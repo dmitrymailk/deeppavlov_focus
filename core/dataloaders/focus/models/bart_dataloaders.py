@@ -1,7 +1,10 @@
 from itertools import chain
 from typing import List, TypedDict
 
-from core.dataloaders.focus.focus_dataloader import FoCusDatasetSampleDictV1
+from core.dataloaders.focus.focus_dataloader import (
+    FoCusDatasetSampleDictV1,
+    FoCusTestDatasetSampleDictV1,
+)
 from core.dataloaders.focus.focus_dataloader import FoCusDatasetV1
 from core.hyperparameters.bart_hyperparameters import BartHyperparametersV3
 from core.tokenizers.bart_tokenizers import BartFoCusTokenizerV2
@@ -676,4 +679,117 @@ class BartFoCusDatasetSampleV5:
             knowledge_candidates_answer_index=knowledge_candidates_answer_index,
             knowledge_candidates_attention_mask=knowledge_candidates_attention_mask,
             persona_grounding=persona_grounding,
+        )
+
+
+class BartFoCusTestDatasetSampleDictV1(TypedDict):
+    input_ids: List[int]
+    attention_mask: List[int]
+
+
+class BartRensponseTestDatasetDictV1(TypedDict):
+    persona: List[str]
+    knowledge_candidate: str
+    query: str
+
+
+class BartFoCusTestDatasetSampleV1:
+    def __init__(
+        self,
+        focus_dataset_sample: BartRensponseTestDatasetDictV1,
+        tokenizer: BartFoCusTokenizerV2,
+        h_params: BartHyperparametersV3,
+    ) -> None:
+        self.focus_dataset_sample = focus_dataset_sample
+        self.tokenizer = tokenizer
+        self.h_params = h_params
+
+        self.bos_token_id = self.tokenizer.bos_token_id
+        self.pad_token_id = self.tokenizer.pad_token_id
+        self.unk_token_id = self.tokenizer.unk_token_id
+        self.cls_token_id = self.tokenizer.cls_token_id
+        self.eos_token_id = self.tokenizer.eos_token_id
+
+        self.response_bos_id = self.__get_token_id(h_params.response_bos_token)
+        self.response_eos_id = self.__get_token_id(h_params.response_eos_token)
+        self.query_bos_id = self.__get_token_id(h_params.query_bos_token)
+        self.query_eos_id = self.__get_token_id(h_params.query_eos_token)
+        self.sep_token_id = self.__get_token_id(h_params.sep_token)
+
+    def __get_token_id(self, token: str) -> int:
+        token_index = self.tokenizer.get_vocab().get(token, self.unk_token_id)
+        return token_index
+
+    def __flat_list(self, list_of_lists: List[List] | List) -> List:
+        return list(chain.from_iterable(list_of_lists))
+
+    def get_dict(self) -> BartFoCusTestDatasetSampleDictV1:
+        """
+        Returns:
+            input_ids (List[int]):
+                [BOS][persona][SEP][knowledge_candidate][SEP]<query>[dialog][-2]</query>[EOS]
+
+                [persona] - это предложения которые точно использовались для ответа
+                query - это последний вопрос от пользователя
+                response - это ответ от бота за запрос пользователя
+                [knowledge_candidate] - это предложение из базы которое точно
+                    использовалось
+        """
+
+        max_persona_tokens = self.h_params.max_persona_tokens
+        max_dialog_history_tokens = self.h_params.max_dialog_history_tokens
+        max_knowledge_candidates_tokens = self.h_params.max_knowledge_candidates_tokens
+
+        persona = self.focus_dataset_sample["persona"]
+        query = self.focus_dataset_sample["query"]
+        knowledge_candidate = self.focus_dataset_sample["knowledge_candidate"]
+
+        # persona
+        if len(persona) > 0:
+            persona = self.tokenizer.batch_encode_plus(
+                persona,
+                add_special_tokens=False,
+                truncation=True,
+                max_length=max_persona_tokens,
+            )
+            persona = persona["input_ids"]
+
+        # knowledge_candidates
+        used_knowledge_candidates = self.tokenizer.batch_encode_plus(
+            [knowledge_candidate],
+            add_special_tokens=False,
+            truncation=True,
+            max_length=max_knowledge_candidates_tokens,
+        )
+
+        # query
+        query = self.tokenizer.batch_encode_plus(
+            [query],
+            add_special_tokens=False,
+            truncation=True,
+            max_length=max_dialog_history_tokens,
+        )
+
+        flat_persona = self.__flat_list(persona)  # type: ignore
+        flat_knowledge_candidates = self.__flat_list(
+            used_knowledge_candidates["input_ids"],  # type: ignore
+        )
+        flat_query = self.__flat_list(query["input_ids"])  # type: ignore
+        # [BOS][persona][SEP][knowledge_candidate][SEP]<query>[dialog][-2]</query>[EOS]
+        input_ids = [
+            self.bos_token_id,
+            *flat_persona,
+            self.sep_token_id,
+            *flat_knowledge_candidates,
+            self.sep_token_id,
+            self.query_bos_id,
+            *flat_query,
+            self.query_eos_id,
+            self.eos_token_id,
+        ]
+        attention_mask = [1] * len(input_ids)
+
+        return BartFoCusTestDatasetSampleDictV1(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
         )

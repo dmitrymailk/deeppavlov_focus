@@ -1,5 +1,5 @@
 import json
-from typing import List, TypedDict
+from typing import Dict, List, TypedDict
 
 from core.base_models.bart_models import BartLMV7
 from core.base_models.debertav3_models import DebertaV3PersonaClassificationV3
@@ -24,11 +24,6 @@ import torch
 from transformers import AutoTokenizer  # type: ignore
 from transformers import BartConfig  # type: ignore
 from transformers import DebertaV2Config  # type: ignore
-
-
-test_dataset = FoCusTestDatasetV1(
-    input_dataset_path="./datasets/FoCus/test_focus_public.json",
-)
 
 
 class FocusKnowledgeKandidateExtractorDictV1(TypedDict):
@@ -304,3 +299,75 @@ class BartFocusTestDatasetV1:
     def save_dataset_to_json(self, path: str) -> None:
         with open(path, "w") as f:
             json.dump(self.dataset, f, indent=2)
+
+
+def make_submission(
+    knowledge_persona_save_path: str,
+    response_save_path: str,
+    predicts: List[Dict],
+):
+    """
+    функция для создания файла сабмита из файла
+    который получается в результате работы BartFocusTestDatasetV1.save_dataset_to_json
+    Args:
+        knowledge_persona_save_path (str): _description_
+        response_save_path (str): _description_
+        predicts (List): _description_
+    """
+
+    def convert_to_list_of_dicts(_dict):
+        return [{key: _dict[key]} for key in _dict.keys()]
+
+    # predict persona and knowledge
+    knowledge_persona = {}
+    for sample in predicts:
+        dialog_id = sample["dialog_id"]
+        position = sample["position"]
+        predicted_knowledge_index = sample["predicted_knowledge_index"]
+        predicted_persona_grouding = sample["predicted_persona_grouding"]
+
+        if dialog_id not in knowledge_persona:
+            knowledge_persona[dialog_id] = []
+
+        knowledge_persona[dialog_id].append(
+            {
+                "pg": predicted_persona_grouding,
+                "kg": predicted_knowledge_index,
+                "position": position,
+            },
+        )
+
+    for dialog_id in knowledge_persona:
+        knowledge_persona[dialog_id].sort(key=lambda x: x["position"])
+        for sample in knowledge_persona[dialog_id]:
+            sample.pop("position", None)
+
+    knowledge_persona = convert_to_list_of_dicts(knowledge_persona)
+    with open(knowledge_persona_save_path, "w") as f:
+        json.dump(knowledge_persona, f, indent=2)
+
+    # predict response
+    predicted_response = {}
+    for sample in predicts:
+        dialog_id = sample["dialog_id"]
+        position = sample["position"]
+        response = sample["response"]
+
+        if dialog_id not in predicted_response:
+            predicted_response[dialog_id] = []
+
+        predicted_response[dialog_id].append(
+            {
+                "generation": response,
+                "position": position,
+            }
+        )
+
+    for dialog_id in predicted_response:
+        predicted_response[dialog_id].sort(key=lambda x: x["position"])
+        for sample in predicted_response[dialog_id]:
+            sample.pop("position", None)
+
+    predicted_response = convert_to_list_of_dicts(predicted_response)
+    with open(response_save_path, "w") as f:
+        json.dump(knowledge_persona, f, indent=2)

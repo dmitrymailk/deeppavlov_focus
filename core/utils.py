@@ -246,7 +246,7 @@ def experiment_decorator(function):
             doc = "No description"
 
         func_name = function.__name__
-        doc = f"{func_name}:\n{doc}".replace("\n", " ")
+        doc = f"{func_name}: {doc}"
 
         result = function(doc)
         return result

@@ -10,7 +10,10 @@ from core.utils import PytorchDatasetFactory
 
 from datasets import load_metric  # type: ignore
 
+import numpy as np
+
 import torch
+
 
 import transformers as tr
 
@@ -61,7 +64,7 @@ def experiment_1() -> None:
 
     def compute_metrics(eval_pred):
         predictions, labels = eval_pred
-        predictions = torch.argmax(predictions, dim=-1)
+        predictions = np.argmax(predictions, axis=-1)
         return accuracy_metric.compute(predictions=predictions, references=labels)
 
     # train_positive = 0

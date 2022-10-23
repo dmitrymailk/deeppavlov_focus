@@ -101,7 +101,7 @@ def experiment_1() -> None:
         per_device_train_batch_size=hyperparameters.train_batch_size,
         per_device_eval_batch_size=hyperparameters.valid_batch_size,
         num_train_epochs=4,
-        weight_decay=0.012,
+        weight_decay=0.002,
         logging_steps=10,
         overwrite_output_dir=True,
         run_name=f"huggingface_{hyperparameters.model_name}",

@@ -24,15 +24,33 @@ from core.lighting_models.debertav3_lighting import (
 from core.loggers.wandb_logger import WandbLoggerV2
 from core.utils import (
     ExperimentArgumentParserV1,
+    PytorchDatasetFactory,
     TrainArgumentsV1,
     experiment_decorator,
 )
+from core.dataloaders.focus.focus_dataloader import FoCusDatasetPersonaV2
+from core.dataloaders.focus.models.debertav3_dataloaders import (
+    DebertaV3FoCusPersonaDatasetSampleV2,
+)
 
-from pytorch_lightning import Trainer
+
+import pytorch_lightning as pl
 from pytorch_lightning import seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 from transformers import DebertaV2Config, DebertaV2Tokenizer  # type: ignore
+
+
+from datasets import load_metric  # type: ignore
+
+import numpy as np
+
+import transformers as tr
+
+import time
+
+from core.base_models.debertav3_models import DebertaV3PersonaClassificationV3
+import torch
 
 
 def experiment_1():
@@ -102,7 +120,7 @@ def experiment_1():
 
     # ckpt_path = ""  # noqa: E501
 
-    trainer = Trainer(
+    trainer = pl.Trainer(
         accelerator=accelerator,
         logger=wandb_logger.logger,
         callbacks=[checkpoint_callback],
@@ -180,7 +198,7 @@ def experiment_2():
 
     # ckpt_path = ""  # noqa: E501
 
-    trainer = Trainer(
+    trainer = pl.Trainer(
         accelerator=accelerator,
         logger=wandb_logger.logger,
         callbacks=[checkpoint_callback],
@@ -261,7 +279,7 @@ def experiment_3():
 
     ckpt_path = "/home/dimweb/Desktop/deeppavlov/my_focus/focus_knowledge_classification/1is9z2lu/checkpoints/microsoft/deberta-v3-base-epoch=00-valid_loss=0.53.ckpt"  # noqa: E501
 
-    trainer = Trainer(
+    trainer = pl.Trainer(
         accelerator=accelerator,
         logger=wandb_logger.logger,
         callbacks=[checkpoint_callback],
@@ -341,7 +359,7 @@ def experiment_4():
 
     # ckpt_path = "/home/dimweb/Desktop/deeppavlov/my_focus/focus_knowledge_classification/1is9z2lu/checkpoints/microsoft/deberta-v3-base-epoch=00-valid_loss=0.53.ckpt"  # noqa: E501
 
-    trainer = Trainer(
+    trainer = pl.Trainer(
         accelerator=accelerator,
         logger=wandb_logger.logger,
         callbacks=[checkpoint_callback],
@@ -421,7 +439,7 @@ def experiment_5():
 
     # ckpt_path = "/home/dimweb/Desktop/deeppavlov/my_focus/focus_knowledge_classification/1is9z2lu/checkpoints/microsoft/deberta-v3-base-epoch=00-valid_loss=0.53.ckpt"  # noqa: E501
 
-    trainer = Trainer(
+    trainer = pl.Trainer(
         accelerator=accelerator,
         logger=wandb_logger.logger,
         callbacks=[checkpoint_callback],
@@ -502,7 +520,7 @@ def experiment_6():
 
     # ckpt_path = "/home/dimweb/Desktop/deeppavlov/my_focus/focus_knowledge_classification/1is9z2lu/checkpoints/microsoft/deberta-v3-base-epoch=00-valid_loss=0.53.ckpt"  # noqa: E501
 
-    trainer = Trainer(
+    trainer = pl.Trainer(
         accelerator=accelerator,
         logger=wandb_logger.logger,
         callbacks=[checkpoint_callback],
@@ -586,7 +604,7 @@ def experiment_7(doc: str = ""):
 
     ckpt_path = "/home/dimweb/Desktop/deeppavlov/my_focus/focus_knowledge_classification/1269dck1/checkpoints/microsoft/deberta-v3-base-epoch=00-valid_loss=0.50.ckpt"  # noqa: E501
 
-    trainer = Trainer(
+    trainer = pl.Trainer(
         accelerator=accelerator,
         logger=wandb_logger.logger,
         callbacks=[checkpoint_callback],
@@ -671,7 +689,7 @@ def experiment_8(doc: str = ""):
 
     # ckpt_path = "/home/dimweb/Desktop/deeppavlov/my_focus/focus_knowledge_classification/1is9z2lu/checkpoints/microsoft/deberta-v3-base-epoch=00-valid_loss=0.53.ckpt"  # noqa: E501
 
-    trainer = Trainer(
+    trainer = pl.Trainer(
         accelerator=accelerator,
         logger=wandb_logger.logger,
         callbacks=[checkpoint_callback],
@@ -758,7 +776,7 @@ def experiment_9(doc: str = ""):
 
     # ckpt_path = "/home/dimweb/Desktop/deeppavlov/my_focus/focus_knowledge_classification/1is9z2lu/checkpoints/microsoft/deberta-v3-base-epoch=00-valid_loss=0.53.ckpt"  # noqa: E501
 
-    trainer = Trainer(
+    trainer = pl.Trainer(
         accelerator=accelerator,
         logger=wandb_logger.logger,
         callbacks=[checkpoint_callback],
@@ -849,7 +867,7 @@ def experiment_10(doc: str = ""):
 
     # ckpt_path = "/home/dimweb/Desktop/deeppavlov/my_focus/focus_knowledge_classification/1is9z2lu/checkpoints/microsoft/deberta-v3-base-epoch=00-valid_loss=0.53.ckpt"  # noqa: E501
 
-    trainer = Trainer(
+    trainer = pl.Trainer(
         accelerator=accelerator,
         logger=wandb_logger.logger,
         callbacks=[checkpoint_callback],
@@ -935,7 +953,7 @@ def experiment_11(doc: str = ""):
 
     # ckpt_path = "/home/dimweb/Desktop/deeppavlov/my_focus/focus_knowledge_classification/1is9z2lu/checkpoints/microsoft/deberta-v3-base-epoch=00-valid_loss=0.53.ckpt"  # noqa: E501
 
-    trainer = Trainer(
+    trainer = pl.Trainer(
         accelerator=accelerator,
         logger=wandb_logger.logger,
         callbacks=[checkpoint_callback],
@@ -1030,7 +1048,7 @@ def experiment_12(doc: str = ""):
 
     # ckpt_path = "/home/dimweb/Desktop/deeppavlov/my_focus/focus_knowledge_classification/1is9z2lu/checkpoints/microsoft/deberta-v3-base-epoch=00-valid_loss=0.53.ckpt"  # noqa: E501
 
-    trainer = Trainer(
+    trainer = pl.Trainer(
         accelerator=accelerator,
         logger=wandb_logger.logger,
         callbacks=[checkpoint_callback],
@@ -1042,3 +1060,199 @@ def experiment_12(doc: str = ""):
         datamodule=data_module,
         # ckpt_path=ckpt_path,
     )
+
+
+@experiment_decorator
+def experiment_13(doc: str = ""):
+    model_name = "microsoft/deberta-v3-small"
+    tokenizer = tr.AutoTokenizer.from_pretrained(model_name)  # type: ignore
+    data_collator = tr.DataCollatorWithPadding(tokenizer=tokenizer)  # type: ignore
+    model = tr.AutoModelForSequenceClassification.from_pretrained(  # type: ignore
+        model_name,
+        num_labels=2,
+    )
+
+    hyperparameters = DebertaV3HyperparametersV1(
+        train_batch_size=16,
+        valid_batch_size=16,
+        max_dialog_history_tokens=70,
+        max_knowledge_candidates_tokens=220,
+        max_persona_tokens=20,
+        model_name=model_name,
+        project_name="focus_persona_classification",
+    )
+
+    train_dataset = FoCusDatasetPersonaV2(
+        input_dataset_path="./datasets/FoCus/train_focus.json",
+        is_train=True,
+    )
+
+    valid_dataset = FoCusDatasetPersonaV2(
+        input_dataset_path="./datasets/FoCus/valid_focus.json",
+        is_train=False,
+    )
+
+    train_dataset = PytorchDatasetFactory(
+        dataset=train_dataset,
+        tokenizer=tokenizer,
+        hyperparameters=hyperparameters,
+        dataset_sample_class=DebertaV3FoCusPersonaDatasetSampleV2,
+    )
+
+    valid_dataset = PytorchDatasetFactory(
+        dataset=valid_dataset,
+        tokenizer=tokenizer,
+        hyperparameters=hyperparameters,
+        dataset_sample_class=DebertaV3FoCusPersonaDatasetSampleV2,
+    )
+
+    accuracy_metric = load_metric("accuracy")
+
+    def compute_metrics(eval_pred):
+        predictions, labels = eval_pred
+        predictions = np.argmax(predictions, axis=-1)
+        return accuracy_metric.compute(predictions=predictions, references=labels)
+
+    training_args = tr.TrainingArguments(  # type: ignore
+        output_dir=f"./results/{model_name}",
+        learning_rate=2e-5,
+        per_device_train_batch_size=16,
+        per_device_eval_batch_size=16,
+        num_train_epochs=4,
+        weight_decay=0.015,
+        logging_steps=10,
+        overwrite_output_dir=True,
+        run_name=f"huggingface_{model_name}",
+        fp16=True,
+        evaluation_strategy="steps",
+        eval_steps=3000,
+        save_steps=3000,
+        do_train=True,
+        load_best_model_at_end=True,
+    )
+
+    trainer = tr.Trainer(  # type: ignore
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,  # type: ignore
+        eval_dataset=valid_dataset,  # type: ignore
+        tokenizer=tokenizer,
+        data_collator=data_collator,
+        compute_metrics=compute_metrics,  # type: ignore
+    )
+
+    trainer.train()
+    named_tuple = time.localtime()  # get struct_time
+    time_string = time.strftime("%m/%d/%Y, %H:%M:%S", named_tuple)
+    trainer.save_model(f"./results/{model_name}_{time_string}")
+
+
+def experiment_14(doc: str = ""):
+    """
+    использую взвешенный лосс
+    """
+    model_name = "microsoft/deberta-v3-small"
+    tokenizer = tr.AutoTokenizer.from_pretrained(model_name)  # type: ignore
+    data_collator = tr.DataCollatorWithPadding(tokenizer=tokenizer)  # type: ignore
+
+    hyperparameters = DebertaV3HyperparametersV1(
+        train_batch_size=16,
+        valid_batch_size=16,
+        max_dialog_history_tokens=80,
+        max_knowledge_candidates_tokens=250,
+        max_persona_tokens=20,
+        model_name=model_name,
+        project_name="focus_persona_classification",
+    )
+
+    train_dataset = FoCusDatasetPersonaV2(
+        input_dataset_path="./datasets/FoCus/train_focus.json",
+        is_train=False,
+    )
+
+    valid_dataset = FoCusDatasetPersonaV2(
+        input_dataset_path="./datasets/FoCus/valid_focus.json",
+        is_train=False,
+    )
+
+    train_dataset = PytorchDatasetFactory(
+        dataset=train_dataset,
+        tokenizer=tokenizer,
+        hyperparameters=hyperparameters,
+        dataset_sample_class=DebertaV3FoCusPersonaDatasetSampleV2,
+    )
+
+    valid_dataset = PytorchDatasetFactory(
+        dataset=valid_dataset,
+        tokenizer=tokenizer,
+        hyperparameters=hyperparameters,
+        dataset_sample_class=DebertaV3FoCusPersonaDatasetSampleV2,
+    )
+
+    accuracy_metric = load_metric("accuracy")
+
+    def compute_metrics(eval_pred):
+        predictions, labels = eval_pred
+        predictions = np.argmax(predictions, axis=-1)
+        return accuracy_metric.compute(predictions=predictions, references=labels)
+
+    # train_positive = 0
+    # train_negative = 0
+    # for sample in train_dataset:  # type: ignore
+    #     if sample["labels"] == 1:
+    #         train_positive += 1
+    #     else:
+    #         train_negative += 1
+
+    # print("Train positive: ", train_positive)
+    # print("Train negative: ", train_negative)
+    # print("Train ratio: ", train_positive / (train_positive + train_negative))
+
+    # positive_ratio = train_positive / (train_positive + train_negative)
+    # Class weights:  [0.13454188704999148, 0.8654581129500085]
+    # class_weights = [positive_ratio, 1 - positive_ratio]
+    class_weights = [0.1, 0.9]
+    print("Class weights: ", class_weights)
+
+    class_weights = torch.tensor(class_weights)
+
+    model = DebertaV3PersonaClassificationV3.from_pretrained(  # type: ignore
+        hyperparameters.model_name,
+        config=DebertaV2Config.from_pretrained(
+            hyperparameters.model_name,
+        ),
+        class_weights=class_weights,
+    )
+
+    training_args = tr.TrainingArguments(  # type: ignore
+        output_dir=f"./results/{model_name}",
+        learning_rate=2e-5,
+        per_device_train_batch_size=hyperparameters.train_batch_size,
+        per_device_eval_batch_size=hyperparameters.valid_batch_size,
+        num_train_epochs=4,
+        weight_decay=0.012,
+        logging_steps=10,
+        overwrite_output_dir=True,
+        run_name=f"huggingface_{model_name}",
+        fp16=True,
+        evaluation_strategy="steps",
+        eval_steps=3000,
+        save_steps=3000,
+        do_train=True,
+        load_best_model_at_end=True,
+    )
+
+    trainer = tr.Trainer(  # type: ignore
+        model=model,  # type: ignore
+        args=training_args,
+        train_dataset=train_dataset,  # type: ignore
+        eval_dataset=valid_dataset,  # type: ignore
+        tokenizer=tokenizer,
+        data_collator=data_collator,
+        compute_metrics=compute_metrics,  # type: ignore
+    )
+
+    trainer.train()
+    named_tuple = time.localtime()  # get struct_time
+    time_string = time.strftime("%m/%d/%Y, %H:%M:%S", named_tuple)
+    trainer.save_model(f"./results/{model_name}_{time_string}")

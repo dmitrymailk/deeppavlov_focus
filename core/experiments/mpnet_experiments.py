@@ -20,8 +20,8 @@ def experiment_1() -> None:
     использую взвешенный лосс
     """
     hyperparameters = MPNetHyperparametersV1(
-        train_batch_size=16,
-        valid_batch_size=16,
+        train_batch_size=32,
+        valid_batch_size=32,
         max_dialog_history_tokens=80,
         max_knowledge_candidates_tokens=250,
         max_persona_tokens=20,
@@ -104,8 +104,8 @@ def experiment_1() -> None:
         run_name=f"huggingface_{hyperparameters.model_name}",
         fp16=True,
         evaluation_strategy="steps",
-        eval_steps=3000,
-        save_steps=3000,
+        eval_steps=1500,
+        save_steps=1500,
         do_train=True,
         load_best_model_at_end=True,
     )

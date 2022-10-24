@@ -13,6 +13,8 @@ from transformers.models.deberta_v2.modeling_deberta_v2 import (
     StableDropout,
 )
 
+from kornia.losses import FocalLoss
+
 
 class DebertaV3ForClassificationV1(DebertaV2ForSequenceClassification):
     def __init__(self, config: DebertaV2Config):
@@ -299,6 +301,12 @@ class DebertaV3PersonaClassificationV3(DebertaV2ForSequenceClassification):
         drop_out = getattr(config, "cls_dropout", None)
         drop_out = self.config.hidden_dropout_prob if drop_out is None else drop_out
 
+        self.loss_fcn = FocalLoss(
+            gamma=2.0,
+            alpha=0.5,
+            reduction="mean",
+        )
+
         # Initialize weights and apply final processing
         self.post_init()
 
@@ -342,9 +350,9 @@ class DebertaV3PersonaClassificationV3(DebertaV2ForSequenceClassification):
 
         loss = torch.tensor(0.0).to(self.device)
         if labels is not None:
-            assert self.class_weights is not None
-            loss_fct = nn.CrossEntropyLoss(weight=self.class_weights.to(self.device))
-            loss = loss_fct(logits, labels)
+            # assert self.class_weights is not None
+            # loss_fct = nn.CrossEntropyLoss(weight=self.class_weights.to(self.device))
+            loss = self.loss_fcn(logits, labels)
 
         return DebertaV3OutputV1(
             loss=loss,

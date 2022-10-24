@@ -226,7 +226,7 @@ def experiment_2() -> None:
         save_steps=3000,
         do_train=True,
         # load_best_model_at_end=True,
-        # warmup_steps=hyperparameters.warmup_steps,
+        warmup_steps=hyperparameters.warmup_steps,
     )
 
     trainer = tr.Trainer(  # type: ignore

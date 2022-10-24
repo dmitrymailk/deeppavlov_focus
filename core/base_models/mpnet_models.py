@@ -9,6 +9,8 @@ from transformers.models.mpnet.modeling_mpnet import (
     SequenceClassifierOutput,  # type: ignore
 )
 
+from kornia.losses import FocalLoss
+
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -115,9 +117,14 @@ class MPNetForSequenceClassificationV2(MPNetForSequenceClassification):
         self.classifier = MPNetClassificationHead(config)
         self.cross_entropy_loss_weights = cross_entropy_loss_weights
 
-        self.loss_fcn = FocalLossV1(
+        # self.loss_fcn = FocalLossV1(
+        #     gamma=2.0,
+        #     alpha=cross_entropy_loss_weights,
+        # )
+        self.loss_fcn = FocalLoss(
             gamma=2.0,
-            alpha=cross_entropy_loss_weights,
+            alpha=0.5,
+            reduction="mean",
         )
         # Initialize weights and apply final processing
         self.post_init()

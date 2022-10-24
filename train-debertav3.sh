@@ -26,15 +26,25 @@ small_train() {
 }
 
 debug=0
-while getopts "d:" opt; do
+persona=0
+while getopts "d:p:" opt; do
 	case $opt in
 		d)
             debug=${OPTARG}
+            ;;
+        p)
+            persona=${OPTARG}
+            ;;
     esac
 done
 
 # clear dir
 rm -rf $training_logs*
+
+if [ $persona -eq 1 ]; then
+    echo "start persona training"
+    export WANDB_PROJECT=focus_persona_classification
+fi
 
 if [ $debug -eq 1 ]; then
     debug

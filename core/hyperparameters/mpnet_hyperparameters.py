@@ -16,7 +16,7 @@ class MPNetHyperparametersV1:
     seed: int = 2022
     train_batch_size: int = 4
     valid_batch_size: int = 4
-    warmup_steps: int = 100
+    warmup_steps: int = 4000
     learning_rate: float = 2e-5
     adam_epsilon: float = 1e-8
     weight_decay: float = 0.01

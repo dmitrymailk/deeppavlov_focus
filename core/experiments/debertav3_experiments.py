@@ -1220,6 +1220,8 @@ def experiment_14(doc: str = ""):
         hyperparameters.model_name,
         config=DebertaV2Config.from_pretrained(
             hyperparameters.model_name,
+            hidden_dropout_prob=0.3,
+            pooler_dropout=0.1,
         ),
         class_weights=class_weights,
     )

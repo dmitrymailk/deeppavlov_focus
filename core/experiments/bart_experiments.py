@@ -675,7 +675,7 @@ def experiment_v11() -> None:
     """
     seq2seq model with BartForConditionalGeneration
     тоже самое что и experiment_v5, но теперь используется только loss языкового
-    моделирования и focal loss
+    моделирования и weighted loss
     """
     parser = ExperimentArgumentParserV1()
     args: TrainArgumentsV1 = parser.args
@@ -710,7 +710,7 @@ def experiment_v11() -> None:
     weights = torch.load(
         "/home/dimweb/Desktop/deeppavlov/my_focus/bart_tokens_statistics.pt",
     )
-    weights = weights.to("cuda")
+    weights = 1 - weights.to("cuda")
 
     base_model = BartLMV12.from_pretrained(
         hyperparameters.model_name,

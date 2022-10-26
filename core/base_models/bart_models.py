@@ -1458,7 +1458,6 @@ class BartLMV13(BartForConditionalGeneration):
         config: BartConfig,
         hyperparameters: BartHyperparametersV3,
         tokenizer: BartFoCusTokenizerV2,
-        weights: torch.Tensor,
     ):
         super().__init__(config)
         self.model = BartModel(config)

@@ -3,6 +3,7 @@ from core.base_models.bart_models import (
     # BartLMV5,
     BartLMV10,
     BartLMV11,
+    BartLMV12,
     BartLMV7,
     BartLMV8,
     BartLMV9,
@@ -274,3 +275,102 @@ class BARTLightningModelV3(BARTLightningModelV2):
         preds = logits.argmax(dim=1).view(-1)
         targets = targets.view(-1)
         return self.accuracy(preds, targets)
+
+
+class BARTLightningModelV4(BARTLightningModelV2):
+    def __init__(
+        self,
+        hyperparameters: BartHyperparametersV3,
+        tokenizer: BartFoCusTokenizerV2,
+        base_model: BartLMV12,
+        is_training: bool = False,
+    ) -> None:
+        super().__init__(
+            hyperparameters=hyperparameters,
+            tokenizer=tokenizer,
+            base_model=base_model,  # type: ignore
+            is_training=is_training,
+        )
+
+    def training_step(
+        self,
+        batch,
+        batch_idx: int,
+    ):
+
+        outputs: BartOutputV1 = self.model.forward(
+            **batch,
+        )
+
+        loss = outputs.loss
+
+        lm_loss = outputs.lm_loss
+
+        self.log(
+            "train_loss",
+            loss,  # type: ignore
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+        )
+
+        self.log_dict(
+            {
+                "train_lm_loss": lm_loss,  # type: ignore
+            },
+            on_step=True,
+            on_epoch=True,
+            logger=True,
+        )
+
+        return loss
+
+    def validation_step(self, batch, batch_idx: int):
+
+        outputs = self.model.forward(**batch)
+        loss = outputs.loss
+
+        lm_loss = outputs.lm_loss
+
+        # generate responses
+        generated_responses = self.model.generate(
+            input_ids=batch["input_ids"],
+            attention_mask=batch["attention_mask"],
+            max_length=100,
+        )
+        generated_responses = self.tokenizer.batch_decode(
+            generated_responses,
+            skip_special_tokens=True,
+        )
+        actual_responses = self.tokenizer.batch_decode(
+            batch["labels"],
+            skip_special_tokens=True,
+        )
+
+        # compute text metrics
+        text_metrics = self.text_evaluator.evaluate(
+            generated_texts=generated_responses,
+            original_texts=actual_responses,
+        )
+
+        self.log(
+            "valid_loss",
+            loss,  # type: ignore
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+        )
+
+        self.log_dict(
+            {
+                "valid_lm_loss": lm_loss,  # type: ignore
+                "valid_blue_score": text_metrics["blue_score"],
+                "valid_rougeL_score": text_metrics["rougeL_score"],
+                "valid_chrf_score": text_metrics["chrf_score"],
+            },
+            on_step=True,
+            on_epoch=True,
+            logger=True,
+        )

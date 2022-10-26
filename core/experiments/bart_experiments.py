@@ -1,6 +1,7 @@
 from core.base_models.bart_models import (  # noqa: F401
     BartLMV10,
     BartLMV11,
+    BartLMV12,
     BartLMV7,
     BartLMV8,
     BartLMV9,
@@ -17,6 +18,7 @@ from core.hyperparameters.lighting_hyperparameters import LightingHyperparameter
 from core.lighting_models.bart_lighting import (
     BARTLightningModelV2,
     BARTLightningModelV3,
+    BARTLightningModelV4,
 )
 from core.loggers.wandb_logger import WandbLoggerV1
 from core.tokenizers.bart_tokenizers import BartFoCusTokenizerV2
@@ -25,6 +27,8 @@ from core.utils import ExperimentArgumentParserV1, TrainArgumentsV1
 from pytorch_lightning import Trainer
 from pytorch_lightning import seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
+
+import torch
 
 from transformers import BartConfig  # type: ignore
 
@@ -665,3 +669,92 @@ def experiment_v10() -> None:
     )
 
     trainer.fit(model, datamodule=data_module)
+
+
+def experiment_v11() -> None:
+    """
+    seq2seq model with BartForConditionalGeneration
+    тоже самое что и experiment_v5, но теперь используется только loss языкового
+    моделирования и focal loss
+    """
+    parser = ExperimentArgumentParserV1()
+    args: TrainArgumentsV1 = parser.args
+
+    max_epochs = 4
+    if args.debug_status == 1:
+        max_epochs = 1
+
+    lighting_hyperparameters = LightingHyperparametersV1(
+        precision=16,
+        max_epochs=max_epochs,
+    ).__dict__
+
+    hyperparameters = BartHyperparametersV3(
+        lighting_hyperparameters=lighting_hyperparameters,
+    )
+    seed_everything(hyperparameters.seed)
+
+    tokenizer = BartFoCusTokenizerV2.from_pretrained(
+        hyperparameters.model_name,
+        hyperparameters=hyperparameters,
+    )
+    is_debug = args.debug_status
+
+    data_module = FoCusLightningDataModuleV4(
+        train_path_dataset="./datasets/FoCus/train_focus.json",
+        valid_path_dataset="./datasets/FoCus/valid_focus.json",
+        hyperparameters=hyperparameters,
+        tokenizer=tokenizer,  # type: ignore
+        debug_status=is_debug,
+    )
+    weights = torch.load(
+        "/home/dimweb/Desktop/deeppavlov/my_focus/bart_tokens_statistics.pt",
+    )
+    weights = weights.to("cuda")
+
+    base_model = BartLMV12.from_pretrained(
+        hyperparameters.model_name,
+        config=BartConfig.from_pretrained(
+            hyperparameters.model_name,
+        ),  # type: ignore
+        hyperparameters=hyperparameters,
+        tokenizer=tokenizer,  # type: ignore
+        weights=weights,
+    )
+    model = BARTLightningModelV4(
+        hyperparameters=hyperparameters,
+        tokenizer=tokenizer,  # type: ignore
+        is_training=True,
+        base_model=base_model,  # type: ignore
+    )
+
+    wandb_logger = WandbLoggerV1(
+        hyperparameters=hyperparameters,
+        is_debug=True,
+    )
+
+    checkpoint_callback = ModelCheckpoint(
+        save_top_k=1,
+        monitor="valid_loss",
+        mode="min",
+        filename=f"{hyperparameters.model_name}" + "-{epoch:02d}-{valid_loss:.2f}",
+    )
+
+    accelerator = "gpu"
+    if args.debug_status == 1:
+        accelerator = "cpu"
+
+    # ckpt_path = ""  # noqa: E501
+
+    trainer = Trainer(
+        accelerator=accelerator,
+        logger=wandb_logger.logger,
+        callbacks=[checkpoint_callback],
+        **lighting_hyperparameters,
+    )
+
+    trainer.fit(
+        model,
+        datamodule=data_module,
+        # ckpt_path=ckpt_path,
+    )

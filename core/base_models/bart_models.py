@@ -23,6 +23,8 @@ from transformers.models.bart.modeling_bart import (
 from transformers.models.bart.modeling_bart import shift_tokens_right
 from transformers.models.bart.modeling_bart import BartClassificationHead
 
+from kornia.losses import FocalLoss
+
 
 class BartLMV7(BartForConditionalGeneration):
     base_model_prefix = "model"
@@ -1348,6 +1350,141 @@ class BartLMV12(BartForConditionalGeneration):
         self.loss_fct = nn.CrossEntropyLoss(
             ignore_index=self.tokenizer.pad_token_id,  # type: ignore
             weight=weights,
+        )
+
+        # Initialize weights and apply final processing
+        self.post_init()
+
+    def forward(
+        self,
+        # default fields
+        input_ids: torch.LongTensor,
+        attention_mask: Optional[torch.Tensor] = None,
+        decoder_input_ids: Optional[torch.LongTensor] = None,
+        decoder_attention_mask: Optional[torch.LongTensor] = None,
+        head_mask: Optional[torch.Tensor] = None,
+        decoder_head_mask: Optional[torch.Tensor] = None,
+        cross_attn_head_mask: Optional[torch.Tensor] = None,
+        encoder_outputs: Optional[List[torch.FloatTensor]] = None,
+        past_key_values: Optional[List[torch.FloatTensor]] = None,
+        inputs_embeds: Optional[torch.FloatTensor] = None,
+        decoder_inputs_embeds: Optional[torch.FloatTensor] = None,
+        labels: Optional[torch.LongTensor] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
+        # custom fields
+        **kwargs,
+    ) -> BartOutputV1:
+        """
+        input_ids:
+            [BOS][persona][SEP][knowledge_candidates][SEP]<query>[dialog][-2]</query>[EOS]
+        labels:
+            [BOS]<response>[dialog][-1]</response>[EOS]
+
+        Модель у которой следующий лосс
+        loss = loss_LM
+        где
+            loss_LM - лосс языковой модели
+        """
+        loss: torch.Tensor = torch.tensor(
+            0,
+            device=self.device,
+            dtype=torch.float,
+        )
+
+        lm_loss = None
+
+        if labels is not None:
+
+            use_cache = False
+            if decoder_input_ids is None and decoder_inputs_embeds is None:
+                decoder_input_ids = shift_tokens_right(
+                    labels,  # type: ignore
+                    self.config.pad_token_id,  # type: ignore
+                    self.config.decoder_start_token_id,  # type: ignore
+                )
+
+        outputs = self.model(
+            input_ids,
+            attention_mask=attention_mask,
+            decoder_input_ids=decoder_input_ids,
+            encoder_outputs=encoder_outputs,
+            decoder_attention_mask=decoder_attention_mask,
+            head_mask=head_mask,
+            decoder_head_mask=decoder_head_mask,
+            cross_attn_head_mask=cross_attn_head_mask,
+            past_key_values=past_key_values,
+            inputs_embeds=inputs_embeds,
+            decoder_inputs_embeds=decoder_inputs_embeds,
+            use_cache=use_cache,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+        )
+        last_decoder_states = outputs[0]
+        lm_logits = self.lm_head(last_decoder_states) + self.final_logits_bias
+
+        if labels is not None:
+            lm_loss = self.loss_fct(
+                lm_logits.view(-1, len(self.tokenizer)),
+                labels.view(-1),
+            )
+            loss += lm_loss
+
+        return BartOutputV1(
+            # default fields
+            loss=loss,
+            logits=lm_logits,
+            past_key_values=outputs.past_key_values,
+            decoder_hidden_states=outputs.decoder_hidden_states,
+            decoder_attentions=outputs.decoder_attentions,
+            cross_attentions=outputs.cross_attentions,
+            encoder_last_hidden_state=outputs.encoder_last_hidden_state,
+            encoder_hidden_states=outputs.encoder_hidden_states,
+            encoder_attentions=outputs.encoder_attentions,
+            # custom fields
+            lm_loss=lm_loss,
+            last_hidden_state=last_decoder_states,
+        )
+
+
+class BartLMV13(BartForConditionalGeneration):
+    base_model_prefix = "model"
+    _keys_to_ignore_on_load_missing = [r"final_logits_bias", r"lm_head.weight"]
+
+    def __init__(
+        self,
+        config: BartConfig,
+        hyperparameters: BartHyperparametersV3,
+        tokenizer: BartFoCusTokenizerV2,
+        weights: torch.Tensor,
+    ):
+        super().__init__(config)
+        self.model = BartModel(config)
+        self.tokenizer = tokenizer
+        self.hyperparameters = hyperparameters
+        self.register_buffer("final_logits_bias", torch.zeros((1, len(tokenizer))))
+        self.lm_head = nn.Linear(
+            config.d_model,
+            len(tokenizer),
+            bias=False,
+        )
+        self.persona_head = nn.Linear(
+            config.d_model,
+            hyperparameters.persona_labels_amount,
+            bias=False,
+        )
+        self.knowledge_candidates_head = nn.Linear(
+            config.d_model,
+            hyperparameters.knowledge_labels_amount,
+            bias=False,
+        )
+
+        self.loss_fct = FocalLoss(
+            gamma=2.0,
+            alpha=0.5,
+            reduction="mean",
         )
 
         # Initialize weights and apply final processing

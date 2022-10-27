@@ -714,14 +714,14 @@ def experiment_v11() -> None:
     # weights = 1 - weights.to("cuda")
     # weights = torch.ones(weights.shape).to("cuda")
 
-    base_model = BartLMV12.from_pretrained(
+    base_model = BartLMV8.from_pretrained(
         hyperparameters.model_name,
         config=BartConfig.from_pretrained(
             hyperparameters.model_name,
         ),  # type: ignore
         hyperparameters=hyperparameters,
         tokenizer=tokenizer,  # type: ignore
-        weights=None,
+        # weights=None,
     )
     model = BARTLightningModelV4(
         hyperparameters=hyperparameters,

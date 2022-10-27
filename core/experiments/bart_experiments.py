@@ -708,11 +708,11 @@ def experiment_v11() -> None:
         tokenizer=tokenizer,  # type: ignore
         debug_status=is_debug,
     )
-    weights = torch.load(
-        "/home/dimweb/Desktop/deeppavlov/my_focus/bart_tokens_statistics.pt",
-    )
-    weights = 1 - weights.to("cuda")
-    weights = torch.ones(weights.shape).to("cuda")
+    # weights = torch.load(
+    #     "/home/dimweb/Desktop/deeppavlov/my_focus/bart_tokens_statistics.pt",
+    # )
+    # weights = 1 - weights.to("cuda")
+    # weights = torch.ones(weights.shape).to("cuda")
 
     base_model = BartLMV12.from_pretrained(
         hyperparameters.model_name,
@@ -721,7 +721,7 @@ def experiment_v11() -> None:
         ),  # type: ignore
         hyperparameters=hyperparameters,
         tokenizer=tokenizer,  # type: ignore
-        weights=weights,
+        weights=None,
     )
     model = BARTLightningModelV4(
         hyperparameters=hyperparameters,

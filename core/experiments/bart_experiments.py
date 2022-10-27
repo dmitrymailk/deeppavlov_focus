@@ -714,8 +714,7 @@ def experiment_v11() -> None:
     # weights = 1 - weights.to("cuda")
     # weights = torch.ones(weights.shape).to("cuda")
 
-    base_model = BartLMV8.from_pretrained(
-        hyperparameters.model_name,
+    base_model = BartLMV8(
         config=BartConfig.from_pretrained(
             hyperparameters.model_name,
         ),  # type: ignore

@@ -18,5 +18,5 @@ if __name__ == "__main__":
     # experiment_v6()
     # experiment_v7()
     # experiment_v10()
-    # experiment_v11()
-    experiment_v12()
+    experiment_v11()
+    # experiment_v12()

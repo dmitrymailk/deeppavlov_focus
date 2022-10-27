@@ -712,6 +712,7 @@ def experiment_v11() -> None:
         "/home/dimweb/Desktop/deeppavlov/my_focus/bart_tokens_statistics.pt",
     )
     weights = 1 - weights.to("cuda")
+    weights = torch.ones(weights.shape).to("cuda")
 
     base_model = BartLMV12.from_pretrained(
         hyperparameters.model_name,

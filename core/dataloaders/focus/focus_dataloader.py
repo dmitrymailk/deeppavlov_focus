@@ -6,9 +6,9 @@ class FoCusDatasetSampleDictV1(TypedDict):
     """
     persona: List[str] список предложений из персоны
     knowledge_candidates: List[str] список кандидатов с негативными примерами
-        и одним правильным
+            и одним правильным
     persona_grounding: List[int] маска которая указывает какие предложения из
-        персоны использовались
+            персоны использовались
     dialog: List[int] пары диалогов истории
     knowledge_answer_index: int индекс правильного ответа из кандидатов
     knowledge: List[str] все знания об объекте из википедии что у нас есть
@@ -126,7 +126,7 @@ class FoCusDatasetKnowledgeSampleDictV1(TypedDict):
     knowledge_candidate: str кандидат на знание
     dialog: List[int] пары диалогов истории
     knowledge_candidate_usage: int 0 или 1 показыват использовалилось ли знание
-        в генерации ответа
+            в генерации ответа
     knowledge: List[str] все знания об объекте из википедии что у нас есть
     unique_id: str уникальный id сформированный из id диалога и id utterance
     persona: List[str] персона
@@ -295,7 +295,7 @@ class FoCusDatasetPersonaSampleDictV1(TypedDict):
     knowledge_candidate: str кандидат который использовался для генерации ответа
     dialog: List[int] пары диалогов истории
     persona_grounding: List[int] 0 или 1 показыват использовалась ли персона
-        в генерации ответа
+            в генерации ответа
     """
 
     persona: List[str]
@@ -310,7 +310,7 @@ class FoCusDatasetPersonaSampleDictV2(TypedDict):
     knowledge_candidate: str кандидат который использовался для генерации ответа
     dialog: List[int] пары диалогов истории
     persona_grounding: int 0 или 1 показыват использовалась ли персона
-        в генерации ответа
+            в генерации ответа
     """
 
     persona: str
@@ -472,7 +472,7 @@ class FoCusTestDatasetSampleDictV1(TypedDict):
     """
     persona: List[str] список предложений из персоны
     knowledge_candidates: List[str] список кандидатов с негативными примерами
-        и одним правильным
+            и одним правильным
     query: str последний вопрос от пользователя
     knowledge: List[str] все знания об объекте из википедии что у нас есть
     dialog_id: str идентификатор диалога
@@ -541,4 +541,79 @@ class FoCusTestDatasetV1:
         return len(self.dataset)
 
     def __getitem__(self, index: int) -> FoCusTestDatasetSampleDictV1:
+        return self.dataset[index]
+
+
+class FoCusDatasetKnowledgeSampleDictV2(TypedDict):
+    """
+    knowledge_candidate: str кандидат на знание
+    score: int 0 или 1 показыват использовалилось ли знание
+            в генерации ответа
+    query: str контекст для определяния knowledge_candidate.
+            состоит из последнего вопроса и персоны
+    """
+
+    knowledge_candidate: str
+    score: int
+    query: str
+
+
+class FoCusDatasetKnowledgeV3:
+    def __init__(
+        self,
+        input_dataset_path: str,
+    ) -> None:
+        assert input_dataset_path is not None, "input_dataset_path is None"
+
+        self.input_dataset_path: str = input_dataset_path
+        self.dataset: List[FoCusDatasetKnowledgeSampleDictV2] = []
+
+        self.__build_dataset()
+
+    def __build_dataset(self) -> None:
+        initial_dataset = self.__read_dataset(self.input_dataset_path)
+        self.dataset = self.__create_initial_dataset(initial_dataset=initial_dataset)
+
+    def __create_initial_dataset(
+        self,
+        initial_dataset: Dict,
+    ) -> List[FoCusDatasetKnowledgeSampleDictV2]:
+        dataset = []
+        initial_dataset_data = initial_dataset["data"]
+
+        for dialog_set in initial_dataset_data:
+            utterances = dialog_set["utterance"]
+            persona = dialog_set["persona"]
+            persona = " ".join(persona)
+
+            for utterance in utterances:
+                knowledge_candidates = utterance["knowledge_candidates"]
+                knowledge_answer_index = utterance["knowledge_answer_index"]
+                dialog_index_key = [
+                    item for item in utterance.keys() if "dialog" in item
+                ][0]
+                dialog = utterance[dialog_index_key]
+
+                for i, knowledge_candidate in enumerate(knowledge_candidates):
+                    is_used = int(i == knowledge_answer_index)
+                    query = f"{dialog[-2]} {persona}"
+                    data_sample = FoCusDatasetKnowledgeSampleDictV2(
+                        knowledge_candidate=knowledge_candidate,
+                        score=is_used,
+                        query=query,
+                    )
+
+                    dataset.append(data_sample)
+
+        return dataset
+
+    def __read_dataset(self, input_path: str) -> Dict:
+        with open(input_path, "r") as f:
+            dataset = json.load(f)
+        return dataset
+
+    def __len__(self) -> int:
+        return len(self.dataset)
+
+    def __getitem__(self, index: int) -> FoCusDatasetKnowledgeSampleDictV2:
         return self.dataset[index]

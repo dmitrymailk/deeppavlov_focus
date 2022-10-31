@@ -4,7 +4,10 @@ from core.base_models.mpnet_models import (
     MPNetForSequenceClassificationV1,
     MPNetForSequenceClassificationV2,
 )
-from core.dataloaders.focus.focus_dataloader import FoCusDatasetPersonaV2
+from core.dataloaders.focus.focus_dataloader import (
+    FoCusDatasetKnowledgeV3,
+    FoCusDatasetPersonaV2,
+)
 from core.dataloaders.focus.models.mpnet_dataloaders import (
     MPNetFoCusPersonaDatasetSampleV1,
 )
@@ -19,6 +22,18 @@ import torch
 
 
 import transformers as tr
+
+from torch.utils.data import DataLoader
+import math
+from sentence_transformers import (
+    SentenceTransformer,
+    losses,
+    models,
+)
+from sentence_transformers.evaluation import EmbeddingSimilarityEvaluator
+from sentence_transformers.readers import InputExample
+import logging
+from datetime import datetime
 
 
 def experiment_1() -> None:
@@ -243,3 +258,99 @@ def experiment_2() -> None:
     named_tuple = time.localtime()  # get struct_time
     time_string = time.strftime("%m/%d/%Y, %H:%M:%S", named_tuple)
     trainer.save_model(f"./results/{hyperparameters.model_name}_{time_string}")
+
+
+def experiment_3() -> None:
+    """
+    использую скрипт отсюда чтобы научиться различать подходящие предложения
+    https://github.com/UKPLab/sentence-transformers/blob/master/examples/training/sts/training_stsbenchmark.py
+    ---
+    после исследования кода этого скрипта я пришел к выводу что его невозможно
+    использовать
+    """
+    train_dataset = FoCusDatasetKnowledgeV3(
+        input_dataset_path="./datasets/FoCus/train_focus.json",
+    )
+
+    valid_dataset = FoCusDatasetKnowledgeV3(
+        input_dataset_path="./datasets/FoCus/valid_focus.json",
+    )
+
+    model_name = "sentence-transformers/all-mpnet-base-v2"
+
+    # Read the dataset
+    train_batch_size = 16
+    num_epochs = 4
+    model_save_path = (
+        "./sentence_transformers/"
+        + model_name.replace("/", "-")
+        + "-"
+        + datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    )
+
+    # Use Huggingface/transformers model (like BERT, RoBERTa, XLNet, XLM-R) for mapping tokens to embeddings
+    word_embedding_model = models.Transformer(model_name)
+
+    # Apply mean pooling to get one fixed sized sentence vector
+    pooling_model = models.Pooling(
+        word_embedding_model.get_word_embedding_dimension(),
+        pooling_mode_mean_tokens=True,
+        pooling_mode_cls_token=False,
+        pooling_mode_max_tokens=False,
+    )
+
+    model = SentenceTransformer(modules=[word_embedding_model, pooling_model])
+
+    # Convert the dataset to a DataLoader ready for training
+    logging.info("Read STSbenchmark train dataset")
+
+    train_samples = []
+    dev_samples = []
+
+    for train_sample in train_dataset:
+        knowledge_candidate: str = train_sample["knowledge_candidate"]
+        score = train_sample["score"]
+        query = train_sample["query"]
+        score = float(score)  # type: ignore
+
+        inp_example = InputExample(texts=[knowledge_candidate, query], label=score)
+        train_samples.append(inp_example)
+
+    for valid_sample in valid_dataset:
+        knowledge_candidate = valid_sample["knowledge_candidate"]
+        score = valid_sample["score"]
+        query = valid_sample["query"]
+        score = float(score)  # type: ignore
+
+        inp_example = InputExample(texts=[knowledge_candidate, query], label=score)
+        dev_samples.append(inp_example)
+
+    train_dataloader = DataLoader(
+        train_samples,  # type: ignore
+        shuffle=True,
+        batch_size=train_batch_size,
+    )
+    train_loss = losses.CosineSimilarityLoss(model=model)
+
+    logging.info("Read STSbenchmark dev dataset")
+    evaluator = EmbeddingSimilarityEvaluator.from_input_examples(
+        dev_samples,
+        name="sts-dev",
+    )
+
+    # Configure the training. We skip evaluation in this example
+    warmup_steps = math.ceil(
+        len(train_dataloader) * num_epochs * 0.1,
+    )  # 10% of train data for warm-up
+    logging.info("Warmup-steps: {}".format(warmup_steps))
+
+    # Train the model
+    model.fit(
+        train_objectives=[(train_dataloader, train_loss)],
+        evaluator=evaluator,
+        epochs=num_epochs,
+        evaluation_steps=3,
+        warmup_steps=warmup_steps,
+        output_path=model_save_path,
+        use_amp=True,
+    )

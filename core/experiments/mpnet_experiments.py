@@ -285,6 +285,8 @@ def experiment_4() -> None:
     hyperparameters = MPNetHyperparametersV1(
         lighting_hyperparameters=lighting_hyperparameters,
         project_name="focus_knowledge_classification",
+        train_batch_size=16,
+        valid_batch_size=16,
     )
     seed_everything(hyperparameters.seed)
 

@@ -1,6 +1,9 @@
 from typing import List, TypedDict
 
-from core.dataloaders.focus.focus_dataloader import FoCusDatasetPersonaSampleDictV2
+from core.dataloaders.focus.focus_dataloader import (
+    FoCusDatasetPersonaSampleDictV2,
+    FoCusDatasetKnowledgeSampleDictV2,
+)
 from core.hyperparameters.mpnet_hyperparameters import MPNetHyperparametersV1
 from core.utils import flat_list
 
@@ -91,4 +94,67 @@ class MPNetFoCusPersonaDatasetSampleV1:
             input_ids=input_ids,
             labels=persona_grounding,
             attention_mask=attention_mask,
+        )
+
+
+class MPNetV3FoCusKnowledgeDatasetSampleDictV1(TypedDict):
+    sentence_1: List[int]
+    sentence_2: List[int]
+    attention_mask_1: List[int]
+    attention_mask_2: List[int]
+    utterance_id: str
+    score: float
+
+
+class MPNetFoCusKnowledgeDatasetSampleV1:
+    def __init__(
+        self,
+        dataset_sample: FoCusDatasetKnowledgeSampleDictV2,
+        tokenizer: AutoTokenizer,
+        h_params: MPNetHyperparametersV1,
+    ) -> None:
+        self.dataset_sample = dataset_sample
+        self.tokenizer: AutoTokenizer = tokenizer
+        self.h_params = h_params
+
+        self.bos_token_id = self.tokenizer.bos_token_id  # type: ignore
+        self.eos_token_id = self.tokenizer.eos_token_id  # type: ignore
+
+    def get_dict(self) -> MPNetV3FoCusKnowledgeDatasetSampleDictV1:
+
+        max_length = self.tokenizer.model_max_length  # type: ignore
+
+        knowledge_candidate = self.dataset_sample["knowledge_candidate"]
+        query = self.dataset_sample["query"]
+        utterance_id = self.dataset_sample["utterance_id"]
+        score = self.dataset_sample["score"]
+
+        encoded_knowledge = self.tokenizer.batch_encode_plus(  # type: ignore
+            [knowledge_candidate],
+            add_special_tokens=True,
+            truncation=True,
+            max_length=max_length,
+        )
+        encoded_knowledge = flat_list(encoded_knowledge["input_ids"])
+
+        encoded_query = self.tokenizer.batch_encode_plus(  # type: ignore
+            [query],
+            add_special_tokens=True,
+            truncation=True,
+            max_length=max_length,
+        )
+        encoded_query = flat_list(encoded_query["input_ids"])
+
+        sentence_1 = encoded_knowledge
+        sentence_2 = encoded_query
+        attention_mask_1 = len(sentence_1) * [1]
+        attention_mask_2 = len(sentence_2) * [1]
+
+        return MPNetV3FoCusKnowledgeDatasetSampleDictV1(
+            sentence_1=sentence_1,
+            sentence_2=sentence_2,
+            attention_mask_1=attention_mask_1,
+            attention_mask_2=attention_mask_2,
+            utterance_id=utterance_id,
+            score=score,
         )

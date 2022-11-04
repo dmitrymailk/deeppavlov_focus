@@ -5,6 +5,8 @@ from core.hyperparameters.debertav3_hyperparameters import (
     DebertaV3HyperparametersV1,
 )
 
+from core.hyperparameters.mpnet_hyperparameters import MPNetHyperparametersV1
+
 from pytorch_lightning.loggers import WandbLogger  # type: ignore
 
 
@@ -33,7 +35,7 @@ class WandbLoggerV1:
 class WandbLoggerV2:
     def __init__(
         self,
-        hyperparameters: DebertaV3HyperparametersV1,  # noqa: W503
+        hyperparameters: DebertaV3HyperparametersV1 | MPNetHyperparametersV1,
     ) -> None:
         self.hyperparameters = hyperparameters
 

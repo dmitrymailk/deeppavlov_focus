@@ -27,6 +27,18 @@
                 "--debug_status",
                 "1"
             ]
+        },
+        {
+            "name": "Mpnet Debug",
+            "type": "python",
+            "request": "launch",
+            "module": "core.train_scripts.mpnet_training",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--debug_status",
+                "1"
+            ]
         }
     ]
 }

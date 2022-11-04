@@ -556,9 +556,90 @@ class FoCusDatasetKnowledgeSampleDictV2(TypedDict):
     knowledge_candidate: str
     score: int
     query: str
+    utterance_id: str
 
 
 class FoCusDatasetKnowledgeV3:
+    """
+    датасет состоящий из кандидатов на знания
+    и контекста для определения их пренадлежности
+    контекст выглядит так: последний вопрос + персона
+    на каждую итерацию диалога мы имеем 10 претендентов на знание
+    1 из них правильный
+    9 негативных
+    """
+
+    def __init__(
+        self,
+        input_dataset_path: str,
+    ) -> None:
+        assert input_dataset_path is not None, "input_dataset_path is None"
+
+        self.input_dataset_path: str = input_dataset_path
+        self.dataset: List[FoCusDatasetKnowledgeSampleDictV2] = []
+
+        self.__build_dataset()
+
+    def __build_dataset(self) -> None:
+        initial_dataset = self.__read_dataset(self.input_dataset_path)
+        self.dataset = self.__create_initial_dataset(initial_dataset=initial_dataset)
+
+    def __create_initial_dataset(
+        self,
+        initial_dataset: Dict,
+    ) -> List[FoCusDatasetKnowledgeSampleDictV2]:
+        dataset = []
+        initial_dataset_data = initial_dataset["data"]
+
+        for dialog_set in initial_dataset_data:
+            utterances = dialog_set["utterance"]
+            persona = dialog_set["persona"]
+            persona = " ".join(persona)
+            dialog_id = dialog_set["dialogID"]
+
+            for utterance in utterances:
+                knowledge_candidates = utterance["knowledge_candidates"]
+                knowledge_answer_index = utterance["knowledge_answer_index"]
+                dialog_index_key = [
+                    item for item in utterance.keys() if "dialog" in item
+                ][0]
+                dialog = utterance[dialog_index_key]
+                utterance_id = f"{dialog_id}_{dialog_index_key}"
+
+                for i, knowledge_candidate in enumerate(knowledge_candidates):
+                    is_used = int(i == knowledge_answer_index)
+                    query = f"{dialog[-2]} {persona}"
+                    data_sample = FoCusDatasetKnowledgeSampleDictV2(
+                        knowledge_candidate=knowledge_candidate,
+                        score=is_used,
+                        query=query,
+                        utterance_id=utterance_id,
+                    )
+
+                    dataset.append(data_sample)
+
+        return dataset
+
+    def __read_dataset(self, input_path: str) -> Dict:
+        with open(input_path, "r") as f:
+            dataset = json.load(f)
+        return dataset
+
+    def __len__(self) -> int:
+        return len(self.dataset)
+
+    def __getitem__(self, index: int) -> FoCusDatasetKnowledgeSampleDictV2:
+        return self.dataset[index]
+
+
+class FoCusDatasetKnowledgeV4:
+    """
+    датасет состоящий из кандидатов на знания
+    и контекста для определения их пренадлежности
+    контекст выглядит так: последний вопрос + персона
+    возвращаем только положительные примеры.
+    """
+
     def __init__(
         self,
         input_dataset_path: str,
@@ -593,17 +674,18 @@ class FoCusDatasetKnowledgeV3:
                     item for item in utterance.keys() if "dialog" in item
                 ][0]
                 dialog = utterance[dialog_index_key]
+                utterance_id = f"{dialog_set['dialogID']}_{dialog_index_key}"
 
-                for i, knowledge_candidate in enumerate(knowledge_candidates):
-                    is_used = int(i == knowledge_answer_index)
-                    query = f"{dialog[-2]} {persona}"
-                    data_sample = FoCusDatasetKnowledgeSampleDictV2(
-                        knowledge_candidate=knowledge_candidate,
-                        score=is_used,
-                        query=query,
-                    )
+                knowledge_candidate = knowledge_candidates[knowledge_answer_index]
+                query = f"{dialog[-2]} {persona}"
+                data_sample = FoCusDatasetKnowledgeSampleDictV2(
+                    knowledge_candidate=knowledge_candidate,
+                    score=1,
+                    query=query,
+                    utterance_id=utterance_id,
+                )
 
-                    dataset.append(data_sample)
+                dataset.append(data_sample)
 
         return dataset
 

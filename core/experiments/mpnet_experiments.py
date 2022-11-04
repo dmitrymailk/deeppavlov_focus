@@ -1,18 +1,29 @@
 import time
 
+from pytorch_lightning import seed_everything
+
 from core.base_models.mpnet_models import (
     MPNetForSequenceClassificationV1,
     MPNetForSequenceClassificationV2,
+    MPNetForSentenceEmbeddingV1,
 )
 from core.dataloaders.focus.focus_dataloader import (
     FoCusDatasetKnowledgeV3,
+    FoCusDatasetKnowledgeV4,
     FoCusDatasetPersonaV2,
 )
+from core.lighting_models.mpnet_lighting import MPNetKnowledgeLightningModelV1
 from core.dataloaders.focus.models.mpnet_dataloaders import (
     MPNetFoCusPersonaDatasetSampleV1,
 )
+from core.hyperparameters.lighting_hyperparameters import LightingHyperparametersV1
 from core.hyperparameters.mpnet_hyperparameters import MPNetHyperparametersV1
-from core.utils import PytorchDatasetFactory
+from core.loggers.wandb_logger import WandbLoggerV2
+from core.utils import (
+    ExperimentArgumentParserV1,
+    PytorchDatasetFactory,
+    TrainArgumentsV1,
+)
 
 from datasets import load_metric  # type: ignore
 
@@ -20,20 +31,18 @@ import numpy as np
 
 import torch
 
+import pytorch_lightning as pl
+from pytorch_lightning.callbacks import ModelCheckpoint
 
 import transformers as tr
 
-from torch.utils.data import DataLoader
-import math
-from sentence_transformers import (
-    SentenceTransformer,
-    losses,
-    models,
+
+from core.dataloaders.focus.lighting.mpnet_lighting_dataloader import (
+    MPNetLightingDataModuleV1,
 )
-from sentence_transformers.evaluation import EmbeddingSimilarityEvaluator
-from sentence_transformers.readers import InputExample
-import logging
-from datetime import datetime
+from core.dataloaders.focus.models.mpnet_dataloaders import (
+    MPNetFoCusKnowledgeDatasetSampleV1,
+)
 
 
 def experiment_1() -> None:
@@ -255,102 +264,79 @@ def experiment_2() -> None:
     )
 
     trainer.train()
-    named_tuple = time.localtime()  # get struct_time
-    time_string = time.strftime("%m/%d/%Y, %H:%M:%S", named_tuple)
-    trainer.save_model(f"./results/{hyperparameters.model_name}_{time_string}")
+    run_id = wandb.run.id  # type: ignore
+    trainer.save_model(f"./results/saved/{hyperparameters.model_name}/{run_id}")
 
 
-def experiment_3() -> None:
-    """
-    использую скрипт отсюда чтобы научиться различать подходящие предложения
-    https://github.com/UKPLab/sentence-transformers/blob/master/examples/training/sts/training_stsbenchmark.py
-    ---
-    после исследования кода этого скрипта я пришел к выводу что его невозможно
-    использовать
-    """
-    train_dataset = FoCusDatasetKnowledgeV3(
-        input_dataset_path="./datasets/FoCus/train_focus.json",
+def experiment_4() -> None:
+    """"""
+    parser = ExperimentArgumentParserV1()
+    args: TrainArgumentsV1 = parser.args
+
+    max_epochs = 4
+    if args.debug_status == 1:
+        max_epochs = 1
+
+    lighting_hyperparameters = LightingHyperparametersV1(
+        precision=16,
+        max_epochs=max_epochs,
+    ).__dict__
+
+    hyperparameters = MPNetHyperparametersV1(
+        lighting_hyperparameters=lighting_hyperparameters,
+        project_name="focus_knowledge_classification",
+    )
+    seed_everything(hyperparameters.seed)
+
+    tokenizer = tr.AutoTokenizer.from_pretrained(hyperparameters.model_name)  # type: ignore
+    is_debug = args.debug_status
+
+    data_module = MPNetLightingDataModuleV1(
+        train_path_dataset="./datasets/FoCus/train_focus.json",
+        valid_path_dataset="./datasets/FoCus/valid_focus.json",
+        hyperparameters=hyperparameters,
+        tokenizer=tokenizer,  # type: ignore
+        debug_status=is_debug,
+        base_train_dataset_class=FoCusDatasetKnowledgeV4,
+        base_valid_dataset_class=FoCusDatasetKnowledgeV3,
+        base_train_sample_class=MPNetFoCusKnowledgeDatasetSampleV1,
+        base_valid_sample_class=MPNetFoCusKnowledgeDatasetSampleV1,
     )
 
-    valid_dataset = FoCusDatasetKnowledgeV3(
-        input_dataset_path="./datasets/FoCus/valid_focus.json",
+    base_model = MPNetForSentenceEmbeddingV1.from_pretrained(hyperparameters.model_name)
+
+    model = MPNetKnowledgeLightningModelV1(
+        hyperparameters=hyperparameters,
+        tokenizer=tokenizer,  # type: ignore
+        base_model=base_model,  # type: ignore
     )
 
-    model_name = "sentence-transformers/all-mpnet-base-v2"
-
-    # Read the dataset
-    train_batch_size = 16
-    num_epochs = 4
-    model_save_path = (
-        "./sentence_transformers/"
-        + model_name.replace("/", "-")
-        + "-"
-        + datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    wandb_logger = WandbLoggerV2(
+        hyperparameters=hyperparameters,
     )
 
-    # Use Huggingface/transformers model (like BERT, RoBERTa, XLNet, XLM-R) for mapping tokens to embeddings
-    word_embedding_model = models.Transformer(model_name)
-
-    # Apply mean pooling to get one fixed sized sentence vector
-    pooling_model = models.Pooling(
-        word_embedding_model.get_word_embedding_dimension(),
-        pooling_mode_mean_tokens=True,
-        pooling_mode_cls_token=False,
-        pooling_mode_max_tokens=False,
+    checkpoint_callback = ModelCheckpoint(
+        save_top_k=1,
+        monitor="valid_loss",
+        mode="min",
+        filename=f"{hyperparameters.model_name}" + "-{epoch:02d}-{valid_loss:.2f}",
     )
 
-    model = SentenceTransformer(modules=[word_embedding_model, pooling_model])
+    accelerator = "gpu"
+    if args.debug_status == 1:
+        accelerator = "cpu"
 
-    # Convert the dataset to a DataLoader ready for training
-    logging.info("Read STSbenchmark train dataset")
+    # ckpt_path = ""  # noqa: E501
 
-    train_samples = []
-    dev_samples = []
-
-    for train_sample in train_dataset:
-        knowledge_candidate: str = train_sample["knowledge_candidate"]
-        score = train_sample["score"]
-        query = train_sample["query"]
-        score = float(score)  # type: ignore
-
-        inp_example = InputExample(texts=[knowledge_candidate, query], label=score)
-        train_samples.append(inp_example)
-
-    for valid_sample in valid_dataset:
-        knowledge_candidate = valid_sample["knowledge_candidate"]
-        score = valid_sample["score"]
-        query = valid_sample["query"]
-        score = float(score)  # type: ignore
-
-        inp_example = InputExample(texts=[knowledge_candidate, query], label=score)
-        dev_samples.append(inp_example)
-
-    train_dataloader = DataLoader(
-        train_samples,  # type: ignore
-        shuffle=True,
-        batch_size=train_batch_size,
-    )
-    train_loss = losses.CosineSimilarityLoss(model=model)
-
-    logging.info("Read STSbenchmark dev dataset")
-    evaluator = EmbeddingSimilarityEvaluator.from_input_examples(
-        dev_samples,
-        name="sts-dev",
+    trainer = pl.Trainer(
+        accelerator=accelerator,
+        logger=wandb_logger.logger,
+        callbacks=[checkpoint_callback],
+        **lighting_hyperparameters,
     )
 
-    # Configure the training. We skip evaluation in this example
-    warmup_steps = math.ceil(
-        len(train_dataloader) * num_epochs * 0.1,
-    )  # 10% of train data for warm-up
-    logging.info("Warmup-steps: {}".format(warmup_steps))
-
-    # Train the model
-    model.fit(
-        train_objectives=[(train_dataloader, train_loss)],
-        evaluator=evaluator,
-        epochs=num_epochs,
-        evaluation_steps=3,
-        warmup_steps=warmup_steps,
-        output_path=model_save_path,
-        use_amp=True,
+    trainer.fit(
+        model,
+        datamodule=data_module,
+        # ckpt_path=ckpt_path,
     )

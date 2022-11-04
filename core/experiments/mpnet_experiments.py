@@ -317,9 +317,9 @@ def experiment_4() -> None:
 
     checkpoint_callback = ModelCheckpoint(
         save_top_k=1,
-        monitor="valid_loss",
-        mode="min",
-        filename=f"{hyperparameters.model_name}" + "-{epoch:02d}-{valid_loss:.2f}",
+        monitor="valid_accuracy",
+        mode="max",
+        filename=f"{hyperparameters.model_name}" + "-{epoch:02d}-{valid_accuracy:.2f}",
     )
 
     accelerator = "gpu"

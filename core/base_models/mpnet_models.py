@@ -227,6 +227,8 @@ class MPNetForSentenceEmbeddingV2(MPNetForSequenceClassification):
         self.freeze_mpnet = MPNetModel.from_pretrained(
             "sentence-transformers/all-mpnet-base-v2",
         )
+        for param in self.freeze_mpnet.parameters():  # type: ignore
+            param.requires_grad = False
         self.normalize = normalize
 
     def forward(
@@ -252,21 +254,21 @@ class MPNetForSentenceEmbeddingV2(MPNetForSequenceClassification):
         )
         embeddings = self.mean_pooling(model_output[0], attention_mask)
         embeddings2 = None
-        with torch.no_grad():
-            embeddings2 = self.freeze_mpnet(  # type: ignore
-                input_ids,
-                attention_mask=attention_mask,
-                position_ids=position_ids,
-                head_mask=head_mask,
-                inputs_embeds=inputs_embeds,
-                output_attentions=output_attentions,
-                output_hidden_states=output_hidden_states,
-                return_dict=return_dict,
-            )
-            embeddings2 = self.mean_pooling(
-                embeddings2[0],
-                attention_mask=attention_mask,
-            )
+
+        embeddings2 = self.freeze_mpnet(  # type: ignore
+            input_ids,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+        embeddings2 = self.mean_pooling(
+            embeddings2[0],
+            attention_mask=attention_mask,
+        )
 
         if self.normalize:
             embeddings = (embeddings + embeddings2) / 2

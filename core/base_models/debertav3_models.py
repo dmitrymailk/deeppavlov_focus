@@ -358,3 +358,66 @@ class DebertaV3PersonaClassificationV3(DebertaV2ForSequenceClassification):
             loss=loss,
             logits=logits,
         )
+
+
+class DebertaV3ForSentenceEmbeddingV1(DebertaV2ForSequenceClassification):
+    def __init__(
+        self,
+        config: DebertaV2Config,
+        normalize: bool = True,
+    ):
+        super().__init__(config)
+
+        self.deberta = DebertaV2Model(config)
+        self.normalize = normalize
+        # Initialize weights and apply final processing
+        self.post_init()
+
+    def forward(
+        self,
+        input_ids: Optional[torch.Tensor] = None,
+        attention_mask: Optional[torch.Tensor] = None,
+        token_type_ids: Optional[torch.Tensor] = None,
+        position_ids: Optional[torch.Tensor] = None,
+        inputs_embeds: Optional[torch.Tensor] = None,
+        labels: Optional[torch.Tensor] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
+        unique_ids: Optional[List[str]] = None,
+        **kwargs,
+    ):
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
+
+        input_ids = input_ids.to(self.device)  # type: ignore
+        attention_mask = attention_mask.to(self.device)  # type: ignore
+
+        outputs = self.deberta(
+            input_ids,
+            token_type_ids=token_type_ids,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+
+        encoder_layer = outputs[0]
+        embeddings = self.mean_pooling(encoder_layer, attention_mask)
+        if self.normalize:
+            embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
+
+        return embeddings
+
+    def mean_pooling(self, embeddings, attention_mask):
+        # First element of model_output contains all token embeddings
+        input_mask_expanded = (
+            attention_mask.unsqueeze(-1).expand(embeddings.size()).float()
+        )
+        return torch.sum(embeddings * input_mask_expanded, 1) / torch.clamp(
+            input_mask_expanded.sum(1),
+            min=1e-9,
+        )

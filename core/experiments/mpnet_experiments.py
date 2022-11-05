@@ -7,6 +7,7 @@ from core.base_models.mpnet_models import (
     MPNetForSequenceClassificationV2,
     MPNetForSentenceEmbeddingV1,
 )
+from core.base_models.debertav3_models import DebertaV3ForSentenceEmbeddingV1
 from core.dataloaders.focus.focus_dataloader import (
     FoCusDatasetKnowledgeV3,
     FoCusDatasetKnowledgeV4,
@@ -288,6 +289,7 @@ def experiment_4() -> None:
         project_name="focus_knowledge_classification",
         train_batch_size=16,
         valid_batch_size=16,
+        model_name="microsoft/deberta-v3-small",
     )
     seed_everything(hyperparameters.seed)
 
@@ -306,7 +308,10 @@ def experiment_4() -> None:
         base_valid_sample_class=MPNetFoCusKnowledgeDatasetSampleV1,
     )
 
-    base_model = MPNetForSentenceEmbeddingV1.from_pretrained(hyperparameters.model_name)
+    # base_model = MPNetForSentenceEmbeddingV1.from_pretrained(hyperparameters.model_name)
+    base_model = DebertaV3ForSentenceEmbeddingV1.from_pretrained(
+        hyperparameters.model_name,
+    )
 
     model = MPNetKnowledgeLightningModelV1(
         hyperparameters=hyperparameters,

@@ -217,3 +217,69 @@ class MPNetForSentenceEmbeddingV1(MPNetForSequenceClassification):
             input_mask_expanded.sum(1),
             min=1e-9,
         )
+
+
+class MPNetForSentenceEmbeddingV2(MPNetForSequenceClassification):
+    def __init__(self, config, normalize=True):
+        super().__init__(config)
+
+        self.mpnet = MPNetModel(config)
+        self.freeze_mpnet = MPNetModel.from_pretrained(
+            "sentence-transformers/all-mpnet-base-v2",
+        )
+        self.normalize = normalize
+
+    def forward(
+        self,
+        input_ids: Optional[torch.LongTensor] = None,
+        attention_mask: Optional[torch.FloatTensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
+        head_mask: Optional[torch.FloatTensor] = None,
+        inputs_embeds: Optional[torch.FloatTensor] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
+    ):
+        model_output = self.mpnet(
+            input_ids,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+        embeddings = self.mean_pooling(model_output[0], attention_mask)
+        embeddings2 = None
+        with torch.no_grad():
+            embeddings2 = self.freeze_mpnet(  # type: ignore
+                input_ids,
+                attention_mask=attention_mask,
+                position_ids=position_ids,
+                head_mask=head_mask,
+                inputs_embeds=inputs_embeds,
+                output_attentions=output_attentions,
+                output_hidden_states=output_hidden_states,
+                return_dict=return_dict,
+            )
+            embeddings2 = self.mean_pooling(
+                embeddings2[0],
+                attention_mask=attention_mask,
+            )
+
+        if self.normalize:
+            embeddings = (embeddings + embeddings2) / 2
+            embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
+
+        return embeddings
+
+    def mean_pooling(self, embeddings, attention_mask):
+        # First element of model_output contains all token embeddings
+        input_mask_expanded = (
+            attention_mask.unsqueeze(-1).expand(embeddings.size()).float()
+        )
+        return torch.sum(embeddings * input_mask_expanded, 1) / torch.clamp(
+            input_mask_expanded.sum(1),
+            min=1e-9,
+        )

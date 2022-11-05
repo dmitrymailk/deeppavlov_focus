@@ -242,18 +242,18 @@ class MPNetForSentenceEmbeddingV2(MPNetForSequenceClassification):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
     ):
-        model_output = self.mpnet(
-            input_ids,
-            attention_mask=attention_mask,
-            position_ids=position_ids,
-            head_mask=head_mask,
-            inputs_embeds=inputs_embeds,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
-        )
-        embeddings = self.mean_pooling(model_output[0], attention_mask)
-        embeddings2 = None
+        # model_output = self.mpnet(
+        #     input_ids,
+        #     attention_mask=attention_mask,
+        #     position_ids=position_ids,
+        #     head_mask=head_mask,
+        #     inputs_embeds=inputs_embeds,
+        #     output_attentions=output_attentions,
+        #     output_hidden_states=output_hidden_states,
+        #     return_dict=return_dict,
+        # )
+        # embeddings = self.mean_pooling(model_output[0], attention_mask)
+        # embeddings2 = None
 
         embeddings2 = self.freeze_mpnet(  # type: ignore
             input_ids,
@@ -271,10 +271,9 @@ class MPNetForSentenceEmbeddingV2(MPNetForSequenceClassification):
         )
 
         if self.normalize:
-            embeddings = (embeddings + embeddings2) / 2
-            embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
+            embeddings2 = torch.nn.functional.normalize(embeddings2, p=2, dim=1)
 
-        return embeddings
+        return embeddings2
 
     def mean_pooling(self, embeddings, attention_mask):
         # First element of model_output contains all token embeddings

@@ -294,6 +294,7 @@ def experiment_4() -> None:
     seed_everything(hyperparameters.seed)
 
     tokenizer = tr.AutoTokenizer.from_pretrained(hyperparameters.model_name)  # type: ignore
+    tokenizer.model_max_length = 512
     is_debug = args.debug_status
 
     data_module = MPNetLightingDataModuleV1(

@@ -290,7 +290,7 @@ def experiment_4() -> None:
         project_name="focus_knowledge_classification",
         train_batch_size=16,
         valid_batch_size=16,
-        model_name="microsoft/mpnet-base",
+        model_name="sentence-transformers/all-mpnet-base-v2",
     )
     seed_everything(hyperparameters.seed)
 

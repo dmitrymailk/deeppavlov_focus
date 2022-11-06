@@ -699,3 +699,90 @@ class FoCusDatasetKnowledgeV4:
 
     def __getitem__(self, index: int) -> FoCusDatasetKnowledgeSampleDictV2:
         return self.dataset[index]
+
+
+class FoCusDatasetKnowledgeSampleDictV3(TypedDict):
+    """
+    source: str персона+вопрос
+    positive: str положительный пример
+    negative: str отрицательный пример
+    utterance_id: str идентификатор примера
+    """
+
+    source: str
+    positive: str
+    negative: str
+    utterance_id: str
+
+
+class FoCusDatasetKnowledgeV5:
+    """
+    датасет который генерирует все возможные пары с кандидатами на знания
+    на каждую реплику у нас 10 примеров. 9 отрицательных и 1 положительный.
+    следовательно на каждую реплику у нас будет 9 примеров.
+    положительный + отрицтельный + контекст
+    контекст=персона+вопрос
+    """
+
+    def __init__(
+        self,
+        input_dataset_path: str,
+    ) -> None:
+        assert input_dataset_path is not None, "input_dataset_path is None"
+
+        self.input_dataset_path: str = input_dataset_path
+        self.dataset: List[FoCusDatasetKnowledgeSampleDictV3] = []
+
+        self.__build_dataset()
+
+    def __build_dataset(self) -> None:
+        initial_dataset = self.__read_dataset(self.input_dataset_path)
+        self.dataset = self.__create_initial_dataset(initial_dataset=initial_dataset)
+
+    def __create_initial_dataset(
+        self,
+        initial_dataset: Dict,
+    ) -> List[FoCusDatasetKnowledgeSampleDictV3]:
+        dataset = []
+        initial_dataset_data = initial_dataset["data"]
+
+        for dialog_set in initial_dataset_data:
+            utterances = dialog_set["utterance"]
+            persona = dialog_set["persona"]
+            persona = " ".join(persona)
+
+            for utterance in utterances:
+                knowledge_candidates = utterance["knowledge_candidates"]
+                knowledge_answer_index = utterance["knowledge_answer_index"]
+                dialog_index_key = [
+                    item for item in utterance.keys() if "dialog" in item
+                ][0]
+                dialog = utterance[dialog_index_key]
+                utterance_id = f"{dialog_set['dialogID']}_{dialog_index_key}"
+
+                knowledge_candidate = knowledge_candidates[knowledge_answer_index]
+                query = f"{dialog[-2]} {persona}"
+
+                for i, candidate in enumerate(knowledge_candidates):
+                    if i != knowledge_answer_index:
+                        data_sample = FoCusDatasetKnowledgeSampleDictV3(
+                            source=query,
+                            positive=knowledge_candidate,
+                            negative=candidate,
+                            utterance_id=utterance_id,
+                        )
+
+                        dataset.append(data_sample)
+
+        return dataset
+
+    def __read_dataset(self, input_path: str) -> Dict:
+        with open(input_path, "r") as f:
+            dataset = json.load(f)
+        return dataset
+
+    def __len__(self) -> int:
+        return len(self.dataset)
+
+    def __getitem__(self, index: int) -> FoCusDatasetKnowledgeSampleDictV3:
+        return self.dataset[index]

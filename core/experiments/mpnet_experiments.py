@@ -12,10 +12,15 @@ from core.base_models.debertav3_models import DebertaV3ForSentenceEmbeddingV1
 from core.dataloaders.focus.focus_dataloader import (
     FoCusDatasetKnowledgeV3,
     FoCusDatasetKnowledgeV4,
+    FoCusDatasetKnowledgeV5,
     FoCusDatasetPersonaV2,
 )
-from core.lighting_models.mpnet_lighting import MPNetKnowledgeLightningModelV1
+from core.lighting_models.mpnet_lighting import (
+    MPNetKnowledgeLightningModelV1,
+    MPNetKnowledgeLightningModelV2,
+)
 from core.dataloaders.focus.models.mpnet_dataloaders import (
+    MPNetFoCusKnowledgeDatasetSampleV2,
     MPNetFoCusPersonaDatasetSampleV1,
 )
 from core.hyperparameters.lighting_hyperparameters import LightingHyperparametersV1
@@ -41,6 +46,7 @@ import transformers as tr
 
 from core.dataloaders.focus.lighting.mpnet_lighting_dataloader import (
     MPNetLightingDataModuleV1,
+    MPNetLightingDataModuleV2,
 )
 from core.dataloaders.focus.models.mpnet_dataloaders import (
     MPNetFoCusKnowledgeDatasetSampleV1,
@@ -271,7 +277,9 @@ def experiment_2() -> None:
 
 
 def experiment_4() -> None:
-    """"""
+    """
+    экперименты с symmetric crosse entropy loss
+    """
     parser = ExperimentArgumentParserV1()
     args: TrainArgumentsV1 = parser.args
 
@@ -346,6 +354,94 @@ def experiment_4() -> None:
         **lighting_hyperparameters,
     )
     trainer.validate(model=model, dataloaders=data_module)
+    trainer.fit(
+        model,
+        datamodule=data_module,
+        # ckpt_path=ckpt_path,
+    )
+
+
+def experiment_5() -> None:
+    """
+    пробую самописный triplet loss
+    1 - source * positive + source * negative
+    """
+    parser = ExperimentArgumentParserV1()
+    args: TrainArgumentsV1 = parser.args
+
+    max_epochs = 4
+    if args.debug_status == 1:
+        max_epochs = 1
+
+    lighting_hyperparameters = LightingHyperparametersV1(
+        precision=16,
+        # accumulate_grad_batches=3,
+        max_epochs=max_epochs,
+    ).__dict__
+
+    hyperparameters = MPNetHyperparametersV1(
+        lighting_hyperparameters=lighting_hyperparameters,
+        project_name="focus_knowledge_classification",
+        train_batch_size=16,
+        valid_batch_size=16,
+        model_name="sentence-transformers/all-mpnet-base-v2",
+    )
+    seed_everything(hyperparameters.seed)
+
+    tokenizer = tr.AutoTokenizer.from_pretrained(hyperparameters.model_name)  # type: ignore
+    tokenizer.model_max_length = 512
+    is_debug = args.debug_status
+
+    data_module = MPNetLightingDataModuleV2(
+        train_path_dataset="./datasets/FoCus/train_focus.json",
+        valid_path_dataset="./datasets/FoCus/valid_focus.json",
+        hyperparameters=hyperparameters,
+        tokenizer=tokenizer,  # type: ignore
+        debug_status=is_debug,
+        base_train_dataset_class=FoCusDatasetKnowledgeV5,
+        base_valid_dataset_class=FoCusDatasetKnowledgeV3,
+        base_train_sample_class=MPNetFoCusKnowledgeDatasetSampleV2,
+        base_valid_sample_class=MPNetFoCusKnowledgeDatasetSampleV1,
+    )
+
+    base_model = MPNetForSentenceEmbeddingV1.from_pretrained(hyperparameters.model_name)
+    # base_model = MPNetForSentenceEmbeddingV2.from_pretrained(hyperparameters.model_name)
+    # base_model = DebertaV3ForSentenceEmbeddingV1.from_pretrained(
+    #     hyperparameters.model_name,
+    # )
+
+    model = MPNetKnowledgeLightningModelV2(
+        hyperparameters=hyperparameters,
+        tokenizer=tokenizer,  # type: ignore
+        base_model=base_model,  # type: ignore
+    )
+
+    wandb_logger = WandbLoggerV2(
+        hyperparameters=hyperparameters,
+    )
+
+    checkpoint_callback = ModelCheckpoint(
+        save_top_k=1,
+        monitor="valid_accuracy",
+        mode="max",
+        filename=f"{hyperparameters.model_name}" + "-{epoch:02d}-{valid_accuracy:.2f}",
+    )
+
+    accelerator = "gpu"
+    if args.debug_status == 1:
+        accelerator = "cpu"
+
+    # ckpt_path = ""  # noqa: E501
+
+    trainer = pl.Trainer(
+        accelerator=accelerator,
+        logger=wandb_logger.logger,
+        callbacks=[checkpoint_callback],
+        **lighting_hyperparameters,
+    )
+    if args.debug_status == 1:
+        trainer.validate(model=model, dataloaders=data_module)
+
     trainer.fit(
         model,
         datamodule=data_module,

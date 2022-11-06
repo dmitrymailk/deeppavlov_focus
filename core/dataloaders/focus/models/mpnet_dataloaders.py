@@ -1,6 +1,7 @@
 from typing import List, TypedDict
 
 from core.dataloaders.focus.focus_dataloader import (
+    FoCusDatasetKnowledgeSampleDictV3,
     FoCusDatasetPersonaSampleDictV2,
     FoCusDatasetKnowledgeSampleDictV2,
 )
@@ -157,4 +158,76 @@ class MPNetFoCusKnowledgeDatasetSampleV1:
             attention_mask_2=attention_mask_2,
             utterance_id=utterance_id,
             score=score,
+        )
+
+
+class MPNetV3FoCusKnowledgeDatasetSampleDictV2(TypedDict):
+    source: List[int]
+    positive: List[int]
+    negative: List[int]
+    source_mask: List[int]
+    positive_mask: List[int]
+    negative_mask: List[int]
+    utterance_id: str
+
+
+class MPNetFoCusKnowledgeDatasetSampleV2:
+    def __init__(
+        self,
+        dataset_sample: FoCusDatasetKnowledgeSampleDictV3,
+        tokenizer: AutoTokenizer,
+        h_params: MPNetHyperparametersV1,
+    ) -> None:
+        self.dataset_sample = dataset_sample
+        self.tokenizer: AutoTokenizer = tokenizer
+        self.h_params = h_params
+
+        self.bos_token_id = self.tokenizer.bos_token_id  # type: ignore
+        self.eos_token_id = self.tokenizer.eos_token_id  # type: ignore
+
+    def get_dict(self) -> MPNetV3FoCusKnowledgeDatasetSampleDictV2:
+
+        max_length = self.tokenizer.model_max_length  # type: ignore
+
+        source = self.dataset_sample["source"]
+        positive = self.dataset_sample["positive"]
+        negative = self.dataset_sample["negative"]
+        utterance_id = self.dataset_sample["utterance_id"]
+
+        source = self.tokenizer.batch_encode_plus(  # type: ignore
+            [source],
+            add_special_tokens=True,
+            truncation=True,
+            max_length=max_length,
+        )
+        source = flat_list(source["input_ids"])
+
+        positive = self.tokenizer.batch_encode_plus(  # type: ignore
+            [positive],
+            add_special_tokens=True,
+            truncation=True,
+            max_length=max_length,
+        )
+        positive = flat_list(positive["input_ids"])
+
+        negative = self.tokenizer.batch_encode_plus(  # type: ignore
+            [negative],
+            add_special_tokens=True,
+            truncation=True,
+            max_length=max_length,
+        )
+        negative = flat_list(negative["input_ids"])
+
+        source_mask = len(source) * [1]
+        positive_mask = len(positive) * [1]
+        negative_mask = len(negative) * [1]
+
+        return MPNetV3FoCusKnowledgeDatasetSampleDictV2(
+            source=source,
+            positive=positive,
+            negative=negative,
+            source_mask=source_mask,
+            positive_mask=positive_mask,
+            negative_mask=negative_mask,
+            utterance_id=utterance_id,
         )

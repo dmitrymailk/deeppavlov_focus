@@ -130,3 +130,34 @@ class MPNetKnowledgeLightningModelV1(LightningModule):
 
         accuracy = correct / len(self.predicts["valid"])
         self.log("valid_accuracy", accuracy)
+
+
+class MPNetKnowledgeLightningModelV2(MPNetKnowledgeLightningModelV1):
+    def training_step(
+        self,
+        batch,
+        batch_idx: int,
+    ):
+
+        source = self.model(
+            input_ids=batch["source"],
+            attention_mask=batch["source_mask"],
+        )
+
+        positive = self.model(
+            input_ids=batch["positive"],
+            attention_mask=batch["positive_mask"],
+        )
+
+        negative = self.model(
+            input_ids=batch["negative"],
+            attention_mask=batch["negative_mask"],
+        )
+
+        positive_scores = (source * positive).sum(axis=1)
+        negative_scores = (source * negative).sum(axis=1)
+        # positive should be close to 1, negative should be close to 0
+        loss = (1 - positive_scores).mean() + negative_scores.mean()
+        self.log("train_loss", loss)
+
+        return loss

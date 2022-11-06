@@ -439,7 +439,7 @@ def experiment_5() -> None:
         callbacks=[checkpoint_callback],
         **lighting_hyperparameters,
     )
-    if args.debug_status == 1:
+    if args.debug_status != 1:
         trainer.validate(model=model, dataloaders=data_module)
 
     trainer.fit(

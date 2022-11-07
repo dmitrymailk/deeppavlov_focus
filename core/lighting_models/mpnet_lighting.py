@@ -49,7 +49,7 @@ class MPNetKnowledgeLightningModelV1(LightningModule):
 
         loss_fnc = nn.CrossEntropyLoss()
         labels = torch.tensor(range(len(sentence_1))).to(self.device)
-        scores = torch.mm(sentence_1, sentence_2.T) * 100
+        scores = torch.mm(sentence_1, sentence_2.T) * 10
         loss = (loss_fnc(scores, labels) + loss_fnc(scores.T, labels)) / 2
 
         self.log("train_loss", loss)

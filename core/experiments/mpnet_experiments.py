@@ -289,7 +289,8 @@ def experiment_4() -> None:
 
     lighting_hyperparameters = LightingHyperparametersV1(
         precision=16,
-        accumulate_grad_batches=2,
+        accumulate_grad_batches=1,
+        gradient_clip_val=1.0,
         max_epochs=max_epochs,
     ).__dict__
 

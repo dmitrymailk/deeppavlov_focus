@@ -157,7 +157,7 @@ class MPNetKnowledgeLightningModelV2(MPNetKnowledgeLightningModelV1):
         positive_scores = (source * positive).sum(axis=1)
         negative_scores = (source * negative).sum(axis=1)
         # positive should be close to 1, negative should be close to 0
-        loss = (1 - positive_scores.abs()).mean() + negative_scores.mean().abs()
+        loss = (1 - positive_scores.abs()).mean() + negative_scores.abs().mean()
 
         self.log("train_loss", loss)
 

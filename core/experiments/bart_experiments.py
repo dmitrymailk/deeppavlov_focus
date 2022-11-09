@@ -757,7 +757,11 @@ def experiment_v11() -> None:
     )
 
     if args.debug_status != 1:
-        trainer.validate(model, datamodule=data_module)
+        trainer.validate(
+            model,
+            datamodule=data_module,
+            ckpt_path=ckpt_path,
+        )
 
     trainer.fit(
         model,

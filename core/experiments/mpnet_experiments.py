@@ -292,6 +292,7 @@ def experiment_4() -> None:
         accumulate_grad_batches=1,
         gradient_clip_val=1.0,
         max_epochs=max_epochs,
+        deterministic=False,
     ).__dict__
 
     hyperparameters = MPNetHyperparametersV1(

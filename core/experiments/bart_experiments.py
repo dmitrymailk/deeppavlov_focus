@@ -714,7 +714,8 @@ def experiment_v11() -> None:
     # weights = 1 - weights.to("cuda")
     # weights = torch.ones(weights.shape).to("cuda")
 
-    base_model = BartLMV8(
+    base_model = BartLMV8.from_pretrained(
+        hyperparameters.model_name,
         config=BartConfig.from_pretrained(
             hyperparameters.model_name,
         ),  # type: ignore
@@ -736,16 +737,17 @@ def experiment_v11() -> None:
 
     checkpoint_callback = ModelCheckpoint(
         save_top_k=1,
-        monitor="valid_loss",
-        mode="min",
-        filename=f"{hyperparameters.model_name}" + "-{epoch:02d}-{valid_loss:.2f}",
+        monitor="valid_blue_score_epoch",
+        mode="max",
+        filename=f"{hyperparameters.model_name}"
+        + "-{epoch:02d}-{valid_blue_score_epoch:.2f}",
     )
 
     accelerator = "gpu"
     if args.debug_status == 1:
         accelerator = "cpu"
 
-    # ckpt_path = ""  # noqa: E501
+    ckpt_path = "/home/dimweb/Desktop/deeppavlov/my_focus/Test/pgww3dxh/checkpoints/facebook/bart-base-epoch=02-valid_loss=1.04.ckpt"  # noqa: E501
 
     trainer = Trainer(
         accelerator=accelerator,
@@ -754,10 +756,13 @@ def experiment_v11() -> None:
         **lighting_hyperparameters,
     )
 
+    if args.debug_status != 1:
+        trainer.validate(model, datamodule=data_module)
+
     trainer.fit(
         model,
         datamodule=data_module,
-        # ckpt_path=ckpt_path,
+        ckpt_path=ckpt_path,
     )
 
 

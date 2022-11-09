@@ -299,7 +299,8 @@ def experiment_4() -> None:
         project_name="focus_knowledge_classification",
         train_batch_size=16,
         valid_batch_size=16,
-        model_name="sentence-transformers/all-mpnet-base-v2",
+        # model_name="sentence-transformers/all-mpnet-base-v2",
+        model_name="microsoft/deberta-v3-small",
     )
     seed_everything(hyperparameters.seed)
 
@@ -319,11 +320,11 @@ def experiment_4() -> None:
         base_valid_sample_class=MPNetFoCusKnowledgeDatasetSampleV1,
     )
 
-    base_model = MPNetForSentenceEmbeddingV1.from_pretrained(hyperparameters.model_name)
+    # base_model = MPNetForSentenceEmbeddingV1.from_pretrained(hyperparameters.model_name)
     # base_model = MPNetForSentenceEmbeddingV2.from_pretrained(hyperparameters.model_name)
-    # base_model = DebertaV3ForSentenceEmbeddingV1.from_pretrained(
-    #     hyperparameters.model_name,
-    # )
+    base_model = DebertaV3ForSentenceEmbeddingV1.from_pretrained(
+        hyperparameters.model_name,
+    )
 
     model = MPNetKnowledgeLightningModelV1(
         hyperparameters=hyperparameters,

@@ -681,7 +681,7 @@ def experiment_v11() -> None:
     parser = ExperimentArgumentParserV1()
     args: TrainArgumentsV1 = parser.args
 
-    max_epochs = 8
+    max_epochs = 10
     if args.debug_status == 1:
         max_epochs = 1
 
@@ -747,7 +747,7 @@ def experiment_v11() -> None:
     if args.debug_status == 1:
         accelerator = "cpu"
 
-    ckpt_path = "/home/dimweb/Desktop/deeppavlov/my_focus/Test/pgww3dxh/checkpoints/facebook/bart-base-epoch=02-valid_loss=1.04.ckpt"  # noqa: E501
+    # ckpt_path = "/home/dimweb/Desktop/deeppavlov/my_focus/Test/pgww3dxh/checkpoints/facebook/bart-base-epoch=02-valid_loss=1.04.ckpt"  # noqa: E501
 
     trainer = Trainer(
         accelerator=accelerator,
@@ -760,13 +760,13 @@ def experiment_v11() -> None:
         trainer.validate(
             model,
             datamodule=data_module,
-            ckpt_path=ckpt_path,
+            # ckpt_path=ckpt_path,
         )
 
     trainer.fit(
         model,
         datamodule=data_module,
-        ckpt_path=ckpt_path,
+        # ckpt_path=ckpt_path,
     )
 
 

@@ -47,12 +47,6 @@ class MPNetFoCusPersonaDatasetSampleV1:
         max_knowledge_candidates_tokens = self.h_params.max_knowledge_candidates_tokens
         max_persona_tokens = self.h_params.max_persona_tokens
 
-        # persona: str
-        # used_knowledge: str
-        # dialog: List[str]
-        # persona_grounding: int
-        # unique_id: str
-
         used_knowledge = self.dataset_sample["used_knowledge"]
         dialog = self.dataset_sample["dialog"]
         persona = self.dataset_sample["persona"]
@@ -94,6 +88,80 @@ class MPNetFoCusPersonaDatasetSampleV1:
         return MPNetV3FoCusPersonaDatasetSampleDictV1(
             input_ids=input_ids,
             labels=persona_grounding,
+            attention_mask=attention_mask,
+        )
+
+
+class MPNetFoCusPersonaTestDatasetSampleDictV1(TypedDict):
+    input_ids: List[int]
+    attention_mask: List[int]
+
+
+class MPNetFoCusPersonaTestDatasetSampleDictV2(TypedDict):
+    persona_sentence: str
+    used_knowledge: str
+    query: str
+
+
+class MPNetFoCusPersonaTestDatasetSampleV1:
+    def __init__(
+        self,
+        dataset_sample: MPNetFoCusPersonaTestDatasetSampleDictV2,
+        tokenizer: AutoTokenizer,
+        h_params: MPNetHyperparametersV1,
+    ) -> None:
+        self.dataset_sample = dataset_sample
+        self.tokenizer: AutoTokenizer = tokenizer
+        self.h_params = h_params
+
+        self.bos_token_id = self.tokenizer.bos_token_id  # type: ignore
+        self.eos_token_id = self.tokenizer.eos_token_id  # type: ignore
+
+    def get_dict(self) -> MPNetFoCusPersonaTestDatasetSampleDictV1:
+
+        max_dialog_history_tokens = self.h_params.max_dialog_history_tokens
+        max_knowledge_candidates_tokens = self.h_params.max_knowledge_candidates_tokens
+        max_persona_tokens = self.h_params.max_persona_tokens
+
+        used_knowledge = self.dataset_sample["used_knowledge"]
+        query = self.dataset_sample["query"]
+        persona_sentence = self.dataset_sample["persona_sentence"]
+
+        encoded_persona = self.tokenizer.batch_encode_plus(  # type: ignore
+            [persona_sentence],
+            add_special_tokens=False,
+            truncation=True,
+            max_length=max_persona_tokens,
+        )
+        encoded_persona = flat_list(encoded_persona["input_ids"])
+
+        encoded_knowledge = self.tokenizer.batch_encode_plus(  # type: ignore
+            [used_knowledge],
+            add_special_tokens=False,
+            truncation=True,
+            max_length=max_knowledge_candidates_tokens,
+        )
+        encoded_knowledge = flat_list(encoded_knowledge["input_ids"])
+
+        encoded_query = self.tokenizer.batch_encode_plus(  # type: ignore
+            [query],
+            add_special_tokens=False,
+            truncation=True,
+            max_length=max_dialog_history_tokens,
+        )
+        encoded_query = flat_list(encoded_query["input_ids"])
+
+        input_ids = [
+            self.bos_token_id,
+            *encoded_persona,
+            *encoded_knowledge,
+            *encoded_query,
+            self.eos_token_id,
+        ]
+        attention_mask = len(input_ids) * [1]
+
+        return MPNetFoCusPersonaTestDatasetSampleDictV1(
+            input_ids=input_ids,
             attention_mask=attention_mask,
         )
 

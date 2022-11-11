@@ -549,15 +549,7 @@ class DebertaV3FoCusPersonaTestDatasetSampleV1:
         self.eos_token_id = self.tokenizer.eos_token_id  # type: ignore
 
     def get_dict(self) -> DebertaV3FoCusPersonaTestDatasetSampleDictV1:
-        """
-        Returns:
-            input_ids (List[int]):
-                [BOS][persona_sentence][used_knowledge][query][EOS]
-                [query] - это последний вопрос от пользователя
-                [used_knowledge] - это знание которое точно использовалось для
-                    генерации ответа
-                [persona_sentence] - это одно из 5 предложений персоны
-        """
+
         max_dialog_history_tokens = self.h_params.max_dialog_history_tokens
         max_knowledge_candidates_tokens = self.h_params.max_knowledge_candidates_tokens
         max_persona_tokens = self.h_params.max_persona_tokens

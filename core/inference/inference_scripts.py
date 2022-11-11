@@ -1,8 +1,12 @@
 import json
 from typing import Dict, List, TypedDict
 
-from core.base_models.bart_models import BartLMV7
+from core.base_models.bart_models import BartLMV7, BartLMV8
 from core.base_models.debertav3_models import DebertaV3PersonaClassificationV3
+from core.base_models.mpnet_models import (
+    MPNetForSentenceEmbeddingV1,
+    MPNetForSequenceClassificationV2,
+)
 from core.dataloaders.focus.focus_dataloader import FoCusTestDatasetV1
 from core.dataloaders.focus.models.bart_dataloaders import BartFoCusTestDatasetSampleV1
 from core.dataloaders.focus.models.bart_dataloaders import (
@@ -12,8 +16,13 @@ from core.dataloaders.focus.models.debertav3_dataloaders import (
     DebertaV3FoCusPersonaTestDatasetSampleDictV2,
     DebertaV3FoCusPersonaTestDatasetSampleV1,
 )
+from core.dataloaders.focus.models.mpnet_dataloaders import (
+    MPNetFoCusPersonaTestDatasetSampleDictV2,
+    MPNetFoCusPersonaTestDatasetSampleV1,
+)
 from core.hyperparameters.bart_hyperparameters import BartHyperparametersV3
 from core.hyperparameters.debertav3_hyperparameters import DebertaV3HyperparametersV1
+from core.hyperparameters.mpnet_hyperparameters import MPNetHyperparametersV1
 from core.tokenizers.bart_tokenizers import BartFoCusTokenizerV2
 
 from sentence_transformers import SentenceTransformer, util
@@ -91,6 +100,58 @@ class FocusKnowledgeKandidateExtractorV1:
         )
 
 
+class FocusKnowledgeKandidateExtractorV2:
+    def __init__(
+        self,
+        model_name: str = "/home/dimweb/Desktop/deeppavlov/my_focus/models/knowledge-all-mpnet-base-v2-epoch=02-valid_accuracy=0.99",
+        tokenizer_name: str = "sentence-transformers/all-mpnet-base-v2",
+    ) -> None:
+        self.model_name = model_name
+        self.model = MPNetForSentenceEmbeddingV1.from_pretrained(model_name)
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.to(self.device)  # type: ignore
+
+    def extract(
+        self,
+        persona: List[str],
+        query: str,
+        knowledge_candidates: List[str],
+    ) -> FocusKnowledgeKandidateExtractorDictV1:
+        _persona = " ".join(persona)
+        query = query + " " + _persona
+
+        encoded_query = self.tokenizer.batch_encode_plus(
+            [query],
+            return_tensors="pt",
+            truncation=True,
+            padding="longest",
+        ).to(self.device)
+
+        encoded_knowledge_candidates = self.tokenizer.batch_encode_plus(
+            knowledge_candidates,
+            return_tensors="pt",
+            truncation=True,
+            padding="longest",
+        ).to(self.device)
+
+        encoded_query = self.model(  # type: ignore
+            **encoded_query,
+        )
+
+        encoded_knowledge_candidates = self.model(  # type: ignore
+            **encoded_knowledge_candidates,
+        )
+
+        cosine_scores = util.cos_sim(encoded_knowledge_candidates, encoded_query)  # type: ignore
+        top_indices = cosine_scores.topk(1, dim=0).indices.flatten().tolist()
+        top_sentences = [knowledge_candidates[i] for i in top_indices]
+        return FocusKnowledgeKandidateExtractorDictV1(
+            predicted_index=top_indices[0],
+            predicted_knowledge=top_sentences[0],
+        )
+
+
 class FocusPersonaExtractorV1:
     def __init__(
         self,
@@ -149,7 +210,10 @@ class FocusPersonaExtractorV1:
 
         for i, model_persona_sample in enumerate(model_persona_samples):
             for key in model_persona_sample.keys():
-                model_persona_sample[key] = torch.tensor(model_persona_sample[key])
+                model_persona_sample[key] = torch.tensor(
+                    model_persona_sample[key],
+                    device=self.device,
+                )
                 model_persona_sample[key] = model_persona_sample[key].unsqueeze(0)
 
             outputs = self.model(  # type: ignore
@@ -166,6 +230,37 @@ class FocusPersonaExtractorV1:
             predicted_persona=persona_preds,
             predicted_persona_grounding=predictions,
         )
+
+
+class FocusPersonaExtractorV2(FocusPersonaExtractorV1):
+    def __init__(
+        self,
+        model_name: str = "sentence-transformers/all-mpnet-base-v2",
+        sample_class=MPNetFoCusPersonaTestDatasetSampleDictV2,
+        model_sample_class=MPNetFoCusPersonaTestDatasetSampleV1,
+    ) -> None:
+        self.model_name = model_name
+        self.model = MPNetForSequenceClassificationV2.from_pretrained(
+            model_name,
+        )
+        self.model.eval()  # type: ignore
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.to(self.device)  # type: ignore
+
+        self.hyperparameters = MPNetHyperparametersV1(
+            train_batch_size=16,
+            valid_batch_size=16,
+            max_dialog_history_tokens=80,
+            max_knowledge_candidates_tokens=250,
+            max_persona_tokens=20,
+            model_name=model_name,
+            project_name="focus_persona_classification",
+        )
+
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+        self.sample_class = sample_class
+        self.model_sample_class = model_sample_class
 
 
 class ResponseGeneratorV1:
@@ -219,13 +314,42 @@ class ResponseGeneratorV1:
         return generated_response
 
 
+class ResponseGeneratorV2(ResponseGeneratorV1):
+    def __init__(
+        self,
+        model_name: str = "/home/dimweb/Desktop/deeppavlov/my_focus/models/bart-base-epoch=09-valid_blue_score_epoch=37.14",
+        tokenizer_name: str = "facebook/bart-base",
+    ) -> None:
+
+        self.hyperparameters = BartHyperparametersV3(
+            model_name=model_name,
+        )
+
+        self.tokenizer = BartFoCusTokenizerV2.from_pretrained(
+            tokenizer_name,
+            hyperparameters=self.hyperparameters,
+        )
+        self.model = BartLMV8.from_pretrained(
+            model_name,
+            config=BartConfig.from_pretrained(
+                self.hyperparameters.model_name,
+            ),  # type: ignore
+            hyperparameters=self.hyperparameters,
+            tokenizer=self.tokenizer,
+        )
+        self.model.eval()  # type: ignore
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.to(self.device)  # type: ignore
+
+
 class BartFocusTestDatasetV1:
     def __init__(
         self,
         initial_dataset: FoCusTestDatasetV1,
-        knowledge_kandidate_extractor: FocusKnowledgeKandidateExtractorV1,
-        focus_persona_extractor: FocusPersonaExtractorV1,
-        response_generator: ResponseGeneratorV1,
+        knowledge_kandidate_extractor: FocusKnowledgeKandidateExtractorV1
+        | FocusKnowledgeKandidateExtractorV2,
+        focus_persona_extractor: FocusPersonaExtractorV1 | FocusPersonaExtractorV2,
+        response_generator: ResponseGeneratorV1 | ResponseGeneratorV2,
     ) -> None:
         self.initial_dataset = initial_dataset
         self.knowledge_extractor = knowledge_kandidate_extractor
@@ -370,4 +494,4 @@ def make_submission(
 
     predicted_response = convert_to_list_of_dicts(predicted_response)
     with open(response_save_path, "w") as f:
-        json.dump(knowledge_persona, f, indent=2)
+        json.dump(predicted_response, f, indent=2)

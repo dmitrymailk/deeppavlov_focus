@@ -723,58 +723,58 @@ def experiment_v11() -> None:
         tokenizer=tokenizer,  # type: ignore
         # weights=None,
     )
-    # model = BARTLightningModelV4(
-    #     hyperparameters=hyperparameters,
-    #     tokenizer=tokenizer,  # type: ignore
-    #     is_training=True,
-    #     base_model=base_model,  # type: ignore
-    # )
-
-    # wandb_logger = WandbLoggerV1(
-    #     hyperparameters=hyperparameters,
-    #     is_debug=True,
-    # )
-
-    # checkpoint_callback = ModelCheckpoint(
-    #     save_top_k=1,
-    #     monitor="valid_blue_score_epoch",
-    #     mode="max",
-    #     filename=f"{hyperparameters.model_name}"
-    #     + "-{epoch:02d}-{valid_blue_score_epoch:.2f}",
-    # )
-
-    # accelerator = "gpu"
-    # if args.debug_status == 1:
-    #     accelerator = "cpu"
-
-    ckpt_path = "/home/dimweb/Desktop/deeppavlov/my_focus/Test/1rdinuxe/checkpoints/facebook/bart-base-epoch=09-valid_blue_score_epoch=37.14.ckpt"
-
-    # trainer = Trainer(
-    #     accelerator=accelerator,
-    #     logger=wandb_logger.logger,
-    #     callbacks=[checkpoint_callback],
-    #     **lighting_hyperparameters,
-    # )
-
-    # if args.debug_status != 1:
-    #     trainer.validate(
-    #         model,
-    #         datamodule=data_module,
-    #         # ckpt_path=ckpt_path,
-    #     )
-
-    # trainer.fit(
-    #     model,
-    #     datamodule=data_module,
-    #     # ckpt_path=ckpt_path,
-    # )
-    checkpoint_model = BARTLightningModelV4.load_from_checkpoint(
-        ckpt_path,
-        base_model=base_model,
+    model = BARTLightningModelV4(
+        hyperparameters=hyperparameters,
+        tokenizer=tokenizer,  # type: ignore
+        is_training=True,
+        base_model=base_model,  # type: ignore
     )
-    checkpoint_model.model.save_pretrained(
-        "./models/bart-base-epoch=09-valid_blue_score_epoch=37.14",
+
+    wandb_logger = WandbLoggerV1(
+        hyperparameters=hyperparameters,
+        is_debug=True,
     )
+
+    checkpoint_callback = ModelCheckpoint(
+        save_top_k=1,
+        monitor="valid_blue_score_epoch",
+        mode="max",
+        filename=f"{hyperparameters.model_name}"
+        + "-{epoch:02d}-{valid_blue_score_epoch:.2f}",
+    )
+
+    accelerator = "gpu"
+    if args.debug_status == 1:
+        accelerator = "cpu"
+
+    # ckpt_path = "/home/dimweb/Desktop/deeppavlov/my_focus/Test/1rdinuxe/checkpoints/facebook/bart-base-epoch=09-valid_blue_score_epoch=37.14.ckpt"
+
+    trainer = Trainer(
+        accelerator=accelerator,
+        logger=wandb_logger.logger,
+        callbacks=[checkpoint_callback],
+        **lighting_hyperparameters,
+    )
+
+    if args.debug_status != 1:
+        trainer.validate(
+            model,
+            datamodule=data_module,
+            # ckpt_path=ckpt_path,
+        )
+
+    trainer.fit(
+        model,
+        datamodule=data_module,
+        # ckpt_path=ckpt_path,
+    )
+    # checkpoint_model = BARTLightningModelV4.load_from_checkpoint(
+    #     ckpt_path,
+    #     base_model=base_model,
+    # )
+    # checkpoint_model.model.save_pretrained(
+    #     "./models/bart-base-epoch=09-valid_blue_score_epoch=37.14",
+    # )
 
 
 def experiment_v12() -> None:

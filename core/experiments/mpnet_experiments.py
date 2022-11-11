@@ -52,6 +52,8 @@ from core.dataloaders.focus.models.mpnet_dataloaders import (
     MPNetFoCusKnowledgeDatasetSampleV1,
 )
 
+import wandb
+
 
 def experiment_1() -> None:
     """
@@ -234,13 +236,13 @@ def experiment_2() -> None:
 
     class_weights = torch.tensor(class_weights)
 
-    # model = MPNetForSequenceClassificationV2.from_pretrained(  # type: ignore
-    #     "sentence-transformers/all-mpnet-base-v2",
-    #     cross_entropy_loss_weights=class_weights,
-    # )
     model = MPNetForSequenceClassificationV2.from_pretrained(  # type: ignore
-        "/home/dimweb/Desktop/deeppavlov/my_focus/results/sentence-transformers/all-mpnet-base-v2_10/24/2022, 17:46:44"
+        "sentence-transformers/all-mpnet-base-v2",
+        cross_entropy_loss_weights=class_weights,
     )
+    # model = MPNetForSequenceClassificationV2.from_pretrained(  # type: ignore
+    #     "/home/dimweb/Desktop/deeppavlov/my_focus/results/sentence-transformers/all-mpnet-base-v2_10/24/2022, 17:46:44"
+    # )
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)  # type: ignore
@@ -274,10 +276,10 @@ def experiment_2() -> None:
         compute_metrics=compute_metrics,  # type: ignore
     )
 
-    # trainer.train()
-    # run_id = wandb.run.id  # type: ignore
-    # trainer.save_model(f"./results/saved/{hyperparameters.model_name}/{run_id}")
-    trainer.evaluate()
+    trainer.train()
+    run_id = wandb.run.id  # type: ignore
+    trainer.save_model(f"./results/saved/{hyperparameters.model_name}/{run_id}")
+    # trainer.evaluate()
 
 
 def experiment_4() -> None:
@@ -331,53 +333,53 @@ def experiment_4() -> None:
     #     hyperparameters.model_name,
     # )
 
-    # model = MPNetKnowledgeLightningModelV1(
-    #     hyperparameters=hyperparameters,  # type: ignore
-    #     tokenizer=tokenizer,  # type: ignore
-    #     base_model=base_model,  # type: ignore
-    # )
+    model = MPNetKnowledgeLightningModelV1(
+        hyperparameters=hyperparameters,  # type: ignore
+        tokenizer=tokenizer,  # type: ignore
+        base_model=base_model,  # type: ignore
+    )
 
-    # wandb_logger = WandbLoggerV2(
-    #     hyperparameters=hyperparameters,
-    # )
+    wandb_logger = WandbLoggerV2(
+        hyperparameters=hyperparameters,
+    )
 
-    # checkpoint_callback = ModelCheckpoint(
-    #     save_top_k=1,
-    #     monitor="valid_accuracy",
-    #     mode="max",
-    #     filename=f"{hyperparameters.model_name}" + "-{epoch:02d}-{valid_accuracy:.2f}",
-    # )
+    checkpoint_callback = ModelCheckpoint(
+        save_top_k=1,
+        monitor="valid_accuracy",
+        mode="max",
+        filename=f"{hyperparameters.model_name}" + "-{epoch:02d}-{valid_accuracy:.2f}",
+    )
 
-    # accelerator = "gpu"
-    # if args.debug_status == 1:
-    #     accelerator = "cpu"
+    accelerator = "gpu"
+    if args.debug_status == 1:
+        accelerator = "cpu"
 
     # ckpt_path = ""  # noqa: E501
 
-    # trainer = pl.Trainer(
-    #     accelerator=accelerator,
-    #     logger=wandb_logger.logger,
-    #     callbacks=[checkpoint_callback],
-    #     **lighting_hyperparameters,
-    # )
-    checkpoint_path = "/home/dimweb/Desktop/deeppavlov/my_focus/focus_knowledge_classification/w4kxiktl/checkpoints/sentence-transformers/all-mpnet-base-v2-epoch=02-valid_accuracy=0.99.ckpt"
+    trainer = pl.Trainer(
+        accelerator=accelerator,
+        logger=wandb_logger.logger,
+        callbacks=[checkpoint_callback],
+        **lighting_hyperparameters,
+    )
+    # checkpoint_path = "/home/dimweb/Desktop/deeppavlov/my_focus/focus_knowledge_classification/w4kxiktl/checkpoints/sentence-transformers/all-mpnet-base-v2-epoch=02-valid_accuracy=0.99.ckpt"
     # trainer.validate(
     #     model=model,
     #     dataloaders=data_module,
     #     ckpt_path=checkpoint_path,
     # )
-    # trainer.fit(
-    #     model,
-    #     datamodule=data_module,
-    #     # ckpt_path=ckpt_path,
+    trainer.fit(
+        model,
+        datamodule=data_module,
+        # ckpt_path=ckpt_path,
+    )
+    # checkpoint_model = MPNetKnowledgeLightningModelV1.load_from_checkpoint(
+    #     checkpoint_path=checkpoint_path,
+    #     base_model=base_model,
     # )
-    checkpoint_model = MPNetKnowledgeLightningModelV1.load_from_checkpoint(
-        checkpoint_path=checkpoint_path,
-        base_model=base_model,
-    )
-    checkpoint_model.model.save_pretrained(
-        "./models/knowledge-all-mpnet-base-v2-epoch=02-valid_accuracy=0.99.ckpt",
-    )
+    # checkpoint_model.model.save_pretrained(
+    #     "./models/knowledge-all-mpnet-base-v2-epoch=02-valid_accuracy=0.99.ckpt",
+    # )
 
 
 def experiment_5() -> None:

@@ -7,6 +7,6 @@ from core.experiments.mpnet_experiments import (
 
 if __name__ == "__main__":
     # experiment_2()
-    # experiment_2()
-    experiment_4()
+    experiment_2()
+    # experiment_4()
     # experiment_5()

@@ -119,7 +119,8 @@ def experiment_1() -> None:
     # positive_ratio = train_positive / (train_positive + train_negative)
     # Class weights:  [0.13454188704999148, 0.8654581129500085]
     # class_weights = [positive_ratio, 1 - positive_ratio]
-    class_weights = [0.13454188704999148, 0.8654581129500085]
+    # class_weights = [0.13454188704999148, 0.8654581129500085]
+    class_weights = [1.0, 1.0]
     print("Class weights: ", class_weights)
 
     class_weights = torch.tensor(class_weights)

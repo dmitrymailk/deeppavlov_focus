@@ -301,11 +301,12 @@ class DebertaV3PersonaClassificationV3(DebertaV2ForSequenceClassification):
         drop_out = getattr(config, "cls_dropout", None)
         drop_out = self.config.hidden_dropout_prob if drop_out is None else drop_out
 
-        self.loss_fcn = FocalLoss(
-            gamma=2.0,
-            alpha=0.5,
-            reduction="mean",
-        )
+        # self.loss_fcn = FocalLoss(
+        #     gamma=2.0,
+        #     alpha=0.5,
+        #     reduction="mean",
+        # )
+        self.loss_fcn = nn.CrossEntropyLoss()
 
         # Initialize weights and apply final processing
         self.post_init()
